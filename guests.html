@@ -15,9 +15,9 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .header-stats{display:flex;gap:24px;flex-wrap:wrap}
 .stat{text-align:center;min-width:70px}.stat-num{font-size:26px;font-weight:800;line-height:1}.stat-label{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-top:4px}
 .stat-num.red{color:var(--accent2)}.stat-num.green{color:var(--green)}.stat-num.yellow{color:var(--yellow)}.stat-num.blue{color:var(--blue)}.stat-num.purple{color:var(--purple)}
-.header-actions{display:flex;gap:8px}
-.btn-settings{background:var(--card);border:1px solid var(--border);color:var(--dim);padding:8px 12px;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px}
-.btn-settings:hover{border-color:var(--dim2);color:var(--text)}
+.header-actions{display:flex;gap:8px;align-items:center}
+.btn-icon{background:var(--card);border:1px solid var(--border);color:var(--dim);padding:8px 12px;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;transition:.15s}
+.btn-icon:hover{border-color:var(--dim2);color:var(--text)}
 
 .race-tabs{display:flex;gap:6px;padding:14px 28px;overflow-x:auto;border-bottom:1px solid var(--border);background:var(--card);scrollbar-width:thin}
 .race-tab{flex-shrink:0;padding:10px 16px;border-radius:8px;border:1px solid var(--border);background:var(--bg);cursor:pointer;transition:.2s;min-width:160px;display:flex;flex-direction:column;gap:3px;font-family:inherit;color:var(--text);text-align:left}
@@ -52,15 +52,24 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;font-size:13px}
 thead{background:rgba(255,255,255,.02)}
 th{text-align:left;padding:12px 14px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);font-weight:700;border-bottom:1px solid var(--border);white-space:nowrap}
+th.sortable{cursor:pointer;user-select:none;transition:color .15s}
+th.sortable:hover{color:var(--text)}
+th .sort-arrow{display:inline-block;margin-left:6px;font-size:9px;opacity:.6}
+th.sort-asc .sort-arrow::after{content:"▲"}
+th.sort-desc .sort-arrow::after{content:"▼"}
 td{padding:14px;border-bottom:1px solid var(--border);vertical-align:top}
 tbody tr:last-child td{border-bottom:none}
 tbody tr:hover{background:rgba(255,255,255,.015)}
+tbody tr.flash{animation:flash 1.5s ease-out}
+@keyframes flash{0%{background:rgba(34,197,94,.2)}100%{background:transparent}}
 .td-name{font-weight:600;color:var(--text)}
 .td-notes{color:var(--dim2);font-size:12px;line-height:1.4;max-width:320px;white-space:pre-wrap}
 .td-actions{white-space:nowrap;text-align:right;width:1px}
 .row-action{background:transparent;border:1px solid var(--border);color:var(--dim2);padding:5px 10px;border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;margin-left:4px;transition:.15s}
 .row-action:hover{color:var(--text);border-color:var(--dim2)}
 .row-action.danger:hover{color:#f87171;border-color:#f87171}
+.row-action.go{color:#4ade80;border-color:rgba(34,197,94,.4)}
+.row-action.go:hover{background:rgba(34,197,94,.12);color:#86efac;border-color:#4ade80}
 
 .tag{display:inline-block;padding:3px 9px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap;letter-spacing:.3px}
 .ticket-kessel{background:rgba(34,197,94,.15);color:#4ade80}
@@ -85,14 +94,15 @@ tbody tr:hover{background:rgba(255,255,255,.015)}
 
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:900;opacity:0;pointer-events:none;transition:opacity .2s;backdrop-filter:blur(3px)}
 .overlay.open{opacity:1;pointer-events:auto}
-.modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-48%);width:min(520px,92vw);max-height:90vh;background:var(--card2);border:1px solid var(--border2);border-radius:12px;z-index:901;opacity:0;pointer-events:none;transition:.25s;overflow-y:auto;display:flex;flex-direction:column}
+.modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-48%);width:min(560px,92vw);max-height:90vh;background:var(--card2);border:1px solid var(--border2);border-radius:12px;z-index:901;opacity:0;pointer-events:none;transition:.25s;overflow:hidden;display:flex;flex-direction:column}
+.modal.wide{width:min(720px,92vw)}
 .modal.open{opacity:1;pointer-events:auto;transform:translate(-50%,-50%)}
-.modal-header{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--card2);z-index:1}
+.modal-header{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--card2);flex-shrink:0}
 .modal-header h3{font-size:17px;font-weight:700}
 .modal-close{background:transparent;border:none;color:var(--dim);font-size:22px;cursor:pointer;line-height:1;padding:4px 8px}
 .modal-close:hover{color:var(--text)}
-.modal-body{padding:20px 24px;flex:1}
-.modal-footer{padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;position:sticky;bottom:0;background:var(--card2)}
+.modal-body{padding:20px 24px;overflow-y:auto;flex:1;min-height:0}
+.modal-footer{padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;background:var(--card2);flex-shrink:0}
 .btn-secondary{background:var(--card);color:var(--text);border:1px solid var(--border);padding:8px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
 .btn-secondary:hover{border-color:var(--dim2)}
 .btn-danger{background:transparent;color:#f87171;border:1px solid rgba(239,68,68,.4);padding:8px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
@@ -102,13 +112,31 @@ tbody tr:hover{background:rgba(255,255,255,.015)}
 .form-row label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--dim);font-weight:700;margin-bottom:6px}
 .form-row input,.form-row select,.form-row textarea{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);padding:10px 12px;border-radius:6px;font-size:13px;outline:none;font-family:inherit}
 .form-row input:focus,.form-row select:focus,.form-row textarea:focus{border-color:var(--accent)}
-.form-row textarea{min-height:80px;resize:vertical}
+.form-row textarea{min-height:90px;resize:vertical;font-family:ui-monospace,'Consolas',monospace}
+.form-row textarea.notes{font-family:inherit;min-height:80px}
 .form-hint{font-size:11px;color:var(--dim);margin-top:4px;line-height:1.5}
 .form-hint a{color:var(--blue);text-decoration:none}
 .form-hint a:hover{text-decoration:underline}
 .form-hint code{background:var(--bg);padding:1px 5px;border-radius:3px;color:var(--accent2);font-family:ui-monospace,monospace;font-size:10px}
 .form-error{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;padding:10px 12px;border-radius:6px;font-size:12px;margin-bottom:12px;line-height:1.5}
 .form-success{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#86efac;padding:10px 12px;border-radius:6px;font-size:12px;margin-bottom:12px}
+.form-info{background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);color:#93c5fd;padding:10px 12px;border-radius:6px;font-size:12px;margin-bottom:12px;line-height:1.5}
+
+.bulk-preview{background:var(--bg);border:1px solid var(--border);border-radius:6px;max-height:220px;overflow-y:auto;padding:4px}
+.bulk-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--border);font-size:12px}
+.bulk-row:last-child{border-bottom:none}
+.bulk-row.err{color:#fca5a5}
+.bulk-row-idx{color:var(--dim);font-family:ui-monospace,monospace;font-size:10px;min-width:22px}
+.bulk-row-name{font-weight:600;color:var(--text)}
+.bulk-row-meta{color:var(--dim2);font-size:11px}
+.bulk-row-err{color:#fca5a5;font-size:11px}
+
+.dropdown{position:relative;display:inline-block}
+.dropdown-menu{position:absolute;right:0;top:calc(100% + 4px);background:var(--card2);border:1px solid var(--border2);border-radius:8px;padding:4px;z-index:10;min-width:180px;box-shadow:0 10px 30px rgba(0,0,0,.4);opacity:0;pointer-events:none;transform:translateY(-4px);transition:.15s}
+.dropdown.open .dropdown-menu{opacity:1;pointer-events:auto;transform:translateY(0)}
+.dropdown-item{display:block;width:100%;text-align:left;padding:8px 12px;background:transparent;border:none;color:var(--text);font-size:13px;border-radius:5px;cursor:pointer;font-family:inherit}
+.dropdown-item:hover{background:rgba(255,255,255,.05)}
+.dropdown-sep{height:1px;background:var(--border);margin:4px 0}
 
 .toast{position:fixed;bottom:24px;right:24px;background:var(--card2);border:1px solid var(--border2);padding:12px 18px;border-radius:8px;font-size:13px;font-weight:600;z-index:1000;opacity:0;transform:translateY(10px);transition:.25s;box-shadow:0 10px 30px rgba(0,0,0,.4);display:flex;align-items:center;gap:10px}
 .toast.show{opacity:1;transform:translateY(0)}
@@ -119,13 +147,33 @@ tbody tr:hover{background:rgba(255,255,255,.015)}
 .readonly-banner button{background:transparent;border:1px solid rgba(234,179,8,.4);color:var(--yellow);padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-weight:600;font-family:inherit}
 .readonly-banner button:hover{background:rgba(234,179,8,.15)}
 
-footer{padding:20px 28px;border-top:1px solid var(--border);background:var(--card);color:var(--dim);font-size:11px;line-height:1.7;text-align:center}
+footer{padding:20px 28px;border-top:1px solid var(--border);background:var(--card);color:var(--dim);font-size:11px;line-height:1.7;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
 footer code{background:var(--bg);padding:1px 6px;border-radius:3px;color:var(--accent2);font-family:ui-monospace,monospace;font-size:10px}
+footer a{color:var(--blue);text-decoration:none}
+footer a:hover{text-decoration:underline}
+.kbd{display:inline-block;padding:1px 6px;border-radius:3px;background:var(--bg);border:1px solid var(--border);font-family:ui-monospace,monospace;font-size:10px;color:var(--dim2);margin:0 2px}
 
 @media (max-width:700px){
   .header,.race-header,.controls,.table-wrap,.race-tabs,.readonly-banner,footer{padding-left:14px;padding-right:14px}
   .controls input{width:100%}
   th,td{padding:10px 8px}
+  .race-header{flex-direction:column;align-items:flex-start}
+}
+
+@media print {
+  body{background:#fff;color:#000}
+  .header{background:#fff;color:#000;border-color:#ccc}
+  .header-left h1 span{color:#000}
+  .header-sub,.header-stats,.header-actions,.race-tabs,.controls,.readonly-banner,footer,.td-actions,.td-actions *{display:none !important}
+  th,td{color:#000;border-color:#ccc !important}
+  table{background:#fff;border-color:#ccc}
+  thead{background:#f3f3f3}
+  .race-header{border-color:#ccc}
+  .race-header-left h2,.race-header-meta,.race-header-meta span strong{color:#000 !important}
+  .stat-num,.stat-label,.home-badge{color:#000 !important;background:#f3f3f3 !important}
+  .tag,.status{border:1px solid #ccc;color:#000 !important;background:#f9f9f9 !important}
+  .table-wrap{padding:8px 0}
+  tr{page-break-inside:avoid}
 }
 </style>
 </head>
@@ -138,7 +186,8 @@ footer code{background:var(--bg);padding:1px 6px;border-radius:3px;color:var(--a
   </div>
   <div class="header-stats" id="header-stats"></div>
   <div class="header-actions">
-    <button class="btn-settings" id="btn-settings" title="GitHub token">⚙ Settings</button>
+    <button class="btn-icon" id="btn-print" title="Print current race">🖨 Print</button>
+    <button class="btn-icon" id="btn-settings" title="GitHub token">⚙ Settings</button>
   </div>
 </div>
 
@@ -151,7 +200,7 @@ footer code{background:var(--bg);padding:1px 6px;border-radius:3px;color:var(--a
 <div class="race-header" id="race-header"></div>
 
 <div class="controls">
-  <input type="text" id="search" placeholder="🔎 Search name, company, notes…" />
+  <input type="text" id="search" placeholder="🔎 Search name, company, notes…  ( / )" />
   <select id="filter-status">
     <option value="">All statuses</option>
     <option value="confirmed">Confirmed</option>
@@ -167,6 +216,14 @@ footer code{background:var(--bg);padding:1px 6px;border-radius:3px;color:var(--a
     <option value="vip">VIP Box</option>
   </select>
   <div class="controls-spacer"></div>
+  <div class="dropdown" id="export-dropdown">
+    <button class="btn-icon" id="btn-export">📤 Export CSV ▾</button>
+    <div class="dropdown-menu">
+      <button class="dropdown-item" data-export="current">Current race</button>
+      <button class="dropdown-item" data-export="all">Whole season</button>
+    </div>
+  </div>
+  <button class="btn-icon" id="btn-bulk">📥 Bulk add</button>
   <button class="btn-primary" id="btn-add">＋ Add guest</button>
 </div>
 
@@ -175,10 +232,11 @@ footer code{background:var(--bg);padding:1px 6px;border-radius:3px;color:var(--a
 </div>
 
 <footer>
-  Data stored in <code>guests-data.json</code> · Writes commit directly to GitHub via the browser · <a href="https://github.com/romainlrx171-ui/elms-guests" style="color:var(--blue);text-decoration:none">Source on GitHub</a>
+  <div>Data in <code>guests-data.json</code> · writes commit via GitHub API · <a href="https://github.com/romainlrx171-ui/elms-guests">Source</a></div>
+  <div id="footer-meta"></div>
+  <div>Shortcuts: <span class="kbd">N</span> add · <span class="kbd">B</span> bulk · <span class="kbd">/</span> search · <span class="kbd">Esc</span> close</div>
 </footer>
 
-<!-- Modal -->
 <div class="overlay" id="overlay"></div>
 <div class="modal" id="modal">
   <div class="modal-header">
@@ -189,7 +247,6 @@ footer code{background:var(--bg);padding:1px 6px;border-radius:3px;color:var(--a
   <div class="modal-footer" id="modal-footer"></div>
 </div>
 
-<!-- Toast -->
 <div class="toast" id="toast"></div>
 
 <script>
@@ -197,22 +254,26 @@ const REPO_OWNER = "romainlrx171-ui";
 const REPO_NAME = "elms-guests";
 const DATA_FILE = "guests-data.json";
 const BRANCH = "main";
-
 const TOKEN_KEY = "elms_guests_gh_token";
+
 const STATUS_LABEL = { confirmed:"Confirmed", invited:"Invited", declined:"Declined", noreply:"No reply" };
 const TICKET_LABEL = { kessel:"Kessel", us:"Us", themselves:"Themselves", vip:"VIP Box" };
+const VALID_TICKETS = ["kessel","us","themselves","vip"];
+const VALID_STATUSES = ["confirmed","invited","declined","noreply"];
 
 let DATA = null;
 let fileSha = null;
-const state = { activeRace: null, search: "", status: "", ticket: "" };
+let lastCommit = null;
+let flashId = null;
+const state = { activeRace: null, search: "", status: "", ticket: "", sortBy: "name", sortDir: "asc" };
 
-// --- GitHub API ---
+// --- Token ---
 function getToken(){ return localStorage.getItem(TOKEN_KEY) || ""; }
-function setToken(t){ if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); updateReadonlyBanner(); }
+function setToken(t){ if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); }
 function hasToken(){ return !!getToken(); }
 
+// --- Data load/save ---
 async function loadData(){
-  // Try GitHub API first (gets fresh SHA for writes); fallback to raw fetch for anonymous readers.
   try {
     const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DATA_FILE}?ref=${BRANCH}`, {
       headers: { "Accept":"application/vnd.github+json" }
@@ -221,7 +282,6 @@ async function loadData(){
     const json = await res.json();
     fileSha = json.sha;
     const content = atob(json.content.replace(/\n/g,""));
-    // Handle UTF-8 from base64
     const bytes = Uint8Array.from(content, c => c.charCodeAt(0));
     DATA = JSON.parse(new TextDecoder("utf-8").decode(bytes));
   } catch (e) {
@@ -229,13 +289,25 @@ async function loadData(){
     DATA = await res.json();
   }
   state.activeRace = DATA.races.find(r => r.home)?.id || DATA.races[0].id;
+  loadLastCommit();
+}
+
+async function loadLastCommit(){
+  try {
+    const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/commits?path=${DATA_FILE}&per_page=1`);
+    if (!res.ok) return;
+    const arr = await res.json();
+    if (arr && arr[0]) {
+      lastCommit = { date: arr[0].commit.author.date, message: arr[0].commit.message };
+      renderFooterMeta();
+    }
+  } catch(e) {}
 }
 
 async function saveData(commitMessage){
   const token = getToken();
-  if (!token) throw new Error("No GitHub token set — click Settings to add one.");
+  if (!token) throw new Error("No GitHub token — click ⚙ Settings to add one.");
 
-  // Encode JSON as UTF-8 base64
   const jsonStr = JSON.stringify(DATA, null, 2) + "\n";
   const utf8 = new TextEncoder().encode(jsonStr);
   let binary = ""; utf8.forEach(b => binary += String.fromCharCode(b));
@@ -246,27 +318,21 @@ async function saveData(commitMessage){
 
   const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DATA_FILE}`, {
     method: "PUT",
-    headers: {
-      "Authorization": `Bearer ${token}`,
-      "Accept": "application/vnd.github+json",
-      "Content-Type": "application/json"
-    },
+    headers: { "Authorization": `Bearer ${token}`, "Accept": "application/vnd.github+json", "Content-Type": "application/json" },
     body: JSON.stringify(body)
   });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    if (res.status === 409 || (err.message && err.message.includes("sha"))) {
-      throw new Error("Someone else edited this list. Refresh to get the latest version, then redo your change.");
-    }
-    if (res.status === 401 || res.status === 403) {
-      throw new Error("GitHub rejected the token (401/403). Check it has Contents:write on this repo.");
-    }
+    if (res.status === 409 || (err.message && /sha/i.test(err.message))) throw new Error("Someone else edited this list. Refresh and redo your change.");
+    if (res.status === 401 || res.status === 403) throw new Error("GitHub rejected the token (check Contents:write on this repo).");
     throw new Error(err.message || `Save failed (${res.status})`);
   }
 
   const json = await res.json();
   fileSha = json.content.sha;
+  lastCommit = { date: new Date().toISOString(), message: commitMessage };
+  renderFooterMeta();
 }
 
 // --- Utilities ---
@@ -281,7 +347,6 @@ function fmtDate(iso, endIso){
   }
   return d;
 }
-
 function daysUntil(iso){
   const today = new Date(); today.setHours(0,0,0,0);
   const target = new Date(iso); target.setHours(0,0,0,0);
@@ -290,19 +355,40 @@ function daysUntil(iso){
   if (diff === 0) return "today";
   return `${-diff} day${-diff!==1?"s":""} ago`;
 }
-
+function relTime(iso){
+  const s = Math.floor((Date.now() - new Date(iso).getTime())/1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s/60)} min ago`;
+  if (s < 86400) return `${Math.floor(s/3600)} h ago`;
+  if (s < 604800) return `${Math.floor(s/86400)} day${Math.floor(s/86400)!==1?"s":""} ago`;
+  return new Date(iso).toLocaleDateString("en-GB",{day:"numeric",month:"short"});
+}
 function escapeHtml(s){
   if (s == null) return "";
   return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
-
 function genId(){ return `g-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}`; }
-
 function guestsForRace(raceId){ return DATA.guests.filter(g => g.race === raceId); }
+
+function sortGuests(arr){
+  const { sortBy, sortDir } = state;
+  const dir = sortDir === "asc" ? 1 : -1;
+  const statusOrder = { confirmed:0, invited:1, noreply:2, declined:3 };
+  const ticketOrder = { kessel:0, vip:1, us:2, themselves:3 };
+  return [...arr].sort((a,b) => {
+    let av, bv;
+    if (sortBy === "status") { av = statusOrder[a.status] ?? 99; bv = statusOrder[b.status] ?? 99; }
+    else if (sortBy === "ticket") { av = ticketOrder[a.ticket] ?? 99; bv = ticketOrder[b.ticket] ?? 99; }
+    else { av = (a[sortBy]||"").toString().toLowerCase(); bv = (b[sortBy]||"").toString().toLowerCase(); }
+    if (av < bv) return -1*dir;
+    if (av > bv) return 1*dir;
+    return 0;
+  });
+}
 
 function filteredGuests(raceId){
   const q = state.search.toLowerCase().trim();
-  return guestsForRace(raceId).filter(g => {
+  const base = guestsForRace(raceId).filter(g => {
     if (state.status && g.status !== state.status) return false;
     if (state.ticket && g.ticket !== state.ticket) return false;
     if (q){
@@ -311,6 +397,7 @@ function filteredGuests(raceId){
     }
     return true;
   });
+  return sortGuests(base);
 }
 
 // --- Rendering ---
@@ -381,6 +468,15 @@ function renderRaceHeader(){
   `;
 }
 
+function sortArrow(col){
+  if (state.sortBy !== col) return `<span class="sort-arrow" style="opacity:0">▲</span>`;
+  return `<span class="sort-arrow"></span>`;
+}
+function sortClass(col){
+  if (state.sortBy !== col) return "sortable";
+  return `sortable sort-${state.sortDir}`;
+}
+
 function renderTable(){
   const r = DATA.races.find(x => x.id === state.activeRace);
   const gs = filteredGuests(r.id);
@@ -392,7 +488,7 @@ function renderTable(){
       <div class="empty">
         <h3>${totalForRace === 0 ? "No guests yet for this race" : "No guest matches the current filters"}</h3>
         <p>${totalForRace === 0
-          ? `Click <strong>＋ Add guest</strong> above to invite someone to <strong>${escapeHtml(r.name)}</strong>.`
+          ? `Click <strong>＋ Add guest</strong> or <strong>📥 Bulk add</strong> to invite people to <strong>${escapeHtml(r.name)}</strong>.`
           : `Adjust the filters or search to see more guests.`}</p>
       </div>
     `;
@@ -403,14 +499,16 @@ function renderTable(){
   const rows = gs.map(g => {
     const ticketLabel = TICKET_LABEL[g.ticket] || g.ticket || "—";
     const statusLabel = STATUS_LABEL[g.status] || g.status || "—";
+    const flashCls = g.id === flashId ? " flash" : "";
     return `
-      <tr>
+      <tr class="row${flashCls}" data-row="${g.id}">
         <td><div class="td-name">${escapeHtml(g.name)}</div></td>
         <td>${g.company ? escapeHtml(g.company) : '<span style="color:var(--dim)">—</span>'}</td>
         <td>${g.ticket ? `<span class="tag ticket-${g.ticket}">${ticketLabel}</span>` : "—"}</td>
         <td>${g.status ? `<span class="status status-${g.status}">${statusLabel}</span>` : "—"}</td>
         <td class="td-notes">${g.notes ? escapeHtml(g.notes) : ""}</td>
         ${canEdit ? `<td class="td-actions">
+          ${g.status === "invited" || g.status === "noreply" ? `<button class="row-action go" data-confirm="${g.id}" title="Mark as confirmed">✓ Confirm</button>` : ""}
           <button class="row-action" data-edit="${g.id}">Edit</button>
           <button class="row-action danger" data-delete="${g.id}">Delete</button>
         </td>` : ""}
@@ -423,10 +521,10 @@ function renderTable(){
       <table>
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Company</th>
-            <th>Ticket</th>
-            <th>Status</th>
+            <th class="${sortClass('name')}" data-sort="name">Name${sortArrow('name')}</th>
+            <th class="${sortClass('company')}" data-sort="company">Company${sortArrow('company')}</th>
+            <th class="${sortClass('ticket')}" data-sort="ticket">Ticket${sortArrow('ticket')}</th>
+            <th class="${sortClass('status')}" data-sort="status">Status${sortArrow('status')}</th>
             <th>Notes</th>
             ${canEdit ? "<th></th>" : ""}
           </tr>
@@ -436,15 +534,34 @@ function renderTable(){
     </div>
   `;
 
+  container.querySelectorAll("th[data-sort]").forEach(th => {
+    th.addEventListener("click", () => {
+      const col = th.dataset.sort;
+      if (state.sortBy === col) state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+      else { state.sortBy = col; state.sortDir = "asc"; }
+      renderTable();
+    });
+  });
+
   if (canEdit){
     container.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => openGuestModal(b.dataset.edit)));
     container.querySelectorAll("[data-delete]").forEach(b => b.addEventListener("click", () => confirmDelete(b.dataset.delete)));
+    container.querySelectorAll("[data-confirm]").forEach(b => b.addEventListener("click", () => quickConfirm(b.dataset.confirm)));
   }
+  flashId = null;
 }
 
 function updateReadonlyBanner(){
   document.getElementById("readonly-banner").style.display = hasToken() ? "none" : "flex";
   document.getElementById("btn-add").style.display = hasToken() ? "inline-flex" : "none";
+  document.getElementById("btn-bulk").style.display = hasToken() ? "inline-flex" : "none";
+}
+
+function renderFooterMeta(){
+  const el = document.getElementById("footer-meta");
+  if (!lastCommit) { el.textContent = ""; return; }
+  const msg = lastCommit.message.split("\n")[0];
+  el.innerHTML = `Last updated ${relTime(lastCommit.date)} — <span style="color:var(--dim2)">${escapeHtml(msg)}</span>`;
 }
 
 function renderAll(){
@@ -453,11 +570,12 @@ function renderAll(){
   renderRaceHeader();
   renderTable();
   updateReadonlyBanner();
+  renderFooterMeta();
 }
 
 // --- Modal ---
-function openModal(){ document.getElementById("overlay").classList.add("open"); document.getElementById("modal").classList.add("open"); }
-function closeModal(){ document.getElementById("overlay").classList.remove("open"); document.getElementById("modal").classList.remove("open"); }
+function openModal(wide){ document.getElementById("overlay").classList.add("open"); const m = document.getElementById("modal"); m.classList.toggle("wide", !!wide); m.classList.add("open"); }
+function closeModal(){ document.getElementById("overlay").classList.remove("open"); const m = document.getElementById("modal"); m.classList.remove("open"); m.classList.remove("wide"); }
 
 function openGuestModal(guestId){
   if (!hasToken()) { openSettingsModal(true); return; }
@@ -501,8 +619,18 @@ function openGuestModal(guestId){
     </div>
     <div class="form-row">
       <label>Notes</label>
-      <textarea id="f-notes" placeholder="Anything useful — hotel, flight, dietary, VIP level…">${escapeHtml(g.notes||"")}</textarea>
+      <textarea id="f-notes" class="notes" placeholder="Anything useful — hotel, flight, dietary, VIP level…">${escapeHtml(g.notes||"")}</textarea>
     </div>
+    ${editing ? `
+      <div class="form-row">
+        <label>Clone to another race</label>
+        <select id="f-clone">
+          <option value="">— Select a race to clone into —</option>
+          ${DATA.races.filter(r => r.id !== g.race).map(r => `<option value="${r.id}">${r.flag} ${r.short} — ${fmtDate(r.date)}</option>`).join("")}
+        </select>
+        <div class="form-hint">Creates a copy of this guest on another race with status "Invited". Useful for recurring guests across the season.</div>
+      </div>
+    ` : ""}
   `;
   document.getElementById("modal-footer").innerHTML = `
     <button class="btn-secondary" id="btn-cancel">Cancel</button>
@@ -510,7 +638,7 @@ function openGuestModal(guestId){
   `;
   document.getElementById("btn-cancel").onclick = closeModal;
   document.getElementById("btn-save").onclick = () => submitGuest(editing?.id || null);
-  openModal();
+  openModal(false);
   setTimeout(() => document.getElementById("f-name").focus(), 100);
 }
 
@@ -527,11 +655,11 @@ async function submitGuest(editingId){
     status: document.getElementById("f-status").value,
     notes: document.getElementById("f-notes").value.trim()
   };
+  const cloneRace = editingId ? (document.getElementById("f-clone")?.value || "") : "";
 
   const btn = document.getElementById("btn-save");
   btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:12px;height:12px"></span> Saving…';
 
-  // Optimistic update
   const prevGuests = JSON.parse(JSON.stringify(DATA.guests));
   if (editingId) {
     const idx = DATA.guests.findIndex(g => g.id === editingId);
@@ -539,15 +667,24 @@ async function submitGuest(editingId){
   } else {
     DATA.guests.push(draft);
   }
+  let clonedId = null;
+  if (cloneRace) {
+    clonedId = genId();
+    DATA.guests.push({ ...draft, id: clonedId, race: cloneRace, status: "invited" });
+  }
 
   try {
-    await saveData(editingId ? `Update guest ${name}` : `Add guest ${name}`);
-    state.activeRace = draft.race;
+    const msg = editingId
+      ? (cloneRace ? `Update ${name} & clone to ${cloneRace}` : `Update guest ${name}`)
+      : `Add guest ${name}`;
+    await saveData(msg);
+    state.activeRace = cloneRace || draft.race;
+    flashId = clonedId || draft.id;
     renderAll();
     closeModal();
-    toast("success", editingId ? `Updated ${name}` : `Added ${name}`);
+    toast("success", cloneRace ? `Updated & cloned to ${DATA.races.find(r=>r.id===cloneRace).short}` : (editingId ? `Updated ${name}` : `Added ${name}`));
   } catch (e) {
-    DATA.guests = prevGuests; // rollback
+    DATA.guests = prevGuests;
     showModalError(e.message);
     btn.disabled = false; btn.textContent = editingId ? "Save changes" : "Add guest";
   }
@@ -559,7 +696,7 @@ function confirmDelete(guestId){
   document.getElementById("modal-title").textContent = "Delete guest?";
   document.getElementById("modal-body").innerHTML = `
     <div id="modal-error" style="display:none"></div>
-    <p style="font-size:14px;line-height:1.6;color:var(--text)">Remove <strong>${escapeHtml(g.name)}</strong>${g.company ? ` (${escapeHtml(g.company)})` : ""} from the guest list? This will commit to GitHub immediately.</p>
+    <p style="font-size:14px;line-height:1.6;color:var(--text)">Remove <strong>${escapeHtml(g.name)}</strong>${g.company ? ` (${escapeHtml(g.company)})` : ""} from the guest list? This commits to GitHub immediately.</p>
   `;
   document.getElementById("modal-footer").innerHTML = `
     <button class="btn-secondary" id="btn-cancel">Cancel</button>
@@ -567,17 +704,15 @@ function confirmDelete(guestId){
   `;
   document.getElementById("btn-cancel").onclick = closeModal;
   document.getElementById("btn-confirm").onclick = () => performDelete(guestId);
-  openModal();
+  openModal(false);
 }
 
 async function performDelete(guestId){
   const g = DATA.guests.find(x => x.id === guestId);
   const btn = document.getElementById("btn-confirm");
   btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:12px;height:12px"></span> Deleting…';
-
   const prevGuests = JSON.parse(JSON.stringify(DATA.guests));
   DATA.guests = DATA.guests.filter(x => x.id !== guestId);
-
   try {
     await saveData(`Remove guest ${g.name}`);
     renderAll();
@@ -590,22 +725,185 @@ async function performDelete(guestId){
   }
 }
 
+async function quickConfirm(guestId){
+  const g = DATA.guests.find(x => x.id === guestId);
+  if (!g) return;
+  const prev = g.status;
+  g.status = "confirmed";
+  flashId = g.id;
+  renderAll();
+  try {
+    await saveData(`Confirm ${g.name}`);
+    toast("success", `${g.name} confirmed`);
+  } catch (e) {
+    g.status = prev;
+    renderAll();
+    toast("error", e.message);
+  }
+}
+
+// --- Bulk add ---
+function parseBulk(text){
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  return lines.map((line, idx) => {
+    const cols = splitCsvLine(line);
+    const name = (cols[0] || "").trim();
+    const company = (cols[1] || "").trim();
+    let ticket = (cols[2] || "us").trim().toLowerCase();
+    let status = (cols[3] || "invited").trim().toLowerCase();
+    const notes = (cols[4] || "").trim();
+    const errors = [];
+    if (!name) errors.push("missing name");
+    if (!VALID_TICKETS.includes(ticket)) { errors.push(`invalid ticket "${ticket}"`); ticket = "us"; }
+    if (!VALID_STATUSES.includes(status)) { errors.push(`invalid status "${status}"`); status = "invited"; }
+    return { idx: idx+1, name, company, ticket, status, notes, errors, raw: line };
+  });
+}
+
+function splitCsvLine(line){
+  const out = []; let cur = ""; let inQ = false;
+  for (let i=0; i<line.length; i++){
+    const c = line[i];
+    if (inQ) {
+      if (c === '"' && line[i+1] === '"') { cur += '"'; i++; }
+      else if (c === '"') inQ = false;
+      else cur += c;
+    } else {
+      if (c === '"') inQ = true;
+      else if (c === ",") { out.push(cur); cur = ""; }
+      else cur += c;
+    }
+  }
+  out.push(cur);
+  return out;
+}
+
+function openBulkModal(){
+  if (!hasToken()) { openSettingsModal(true); return; }
+  document.getElementById("modal-title").textContent = "Bulk add guests";
+  document.getElementById("modal-body").innerHTML = `
+    <div id="modal-error" style="display:none"></div>
+    <div class="form-info">
+      One guest per line. Format: <code>Name, Company, Ticket, Status, Notes</code><br>
+      Only <strong>Name</strong> is required. <code>Ticket</code> defaults to <code>us</code>, <code>Status</code> defaults to <code>invited</code>.<br>
+      Wrap values containing commas in <code>"double quotes"</code>.
+    </div>
+    <div class="form-row">
+      <label>Race</label>
+      <select id="f-race">
+        ${DATA.races.map(r => `<option value="${r.id}" ${r.id===state.activeRace?"selected":""}>${r.flag} ${r.short} — ${fmtDate(r.date)}</option>`).join("")}
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Guests (one per line)</label>
+      <textarea id="f-bulk" placeholder='John Doe, Infovista, us, confirmed, Hotel booked
+Jane Smith, Telit, vip, invited, Bringing +1
+"Smith, Jr.", Acme, kessel'></textarea>
+    </div>
+    <div class="form-row" id="preview-wrap" style="display:none">
+      <label>Preview (<span id="preview-count">0</span>)</label>
+      <div class="bulk-preview" id="preview"></div>
+    </div>
+  `;
+  document.getElementById("modal-footer").innerHTML = `
+    <button class="btn-secondary" id="btn-cancel">Cancel</button>
+    <button class="btn-primary" id="btn-save" disabled>Add 0 guests</button>
+  `;
+  document.getElementById("btn-cancel").onclick = closeModal;
+  const textarea = document.getElementById("f-bulk");
+  const refreshPreview = () => {
+    const rows = parseBulk(textarea.value).filter(r => r.name);
+    const hasInput = textarea.value.trim().length > 0;
+    document.getElementById("preview-wrap").style.display = hasInput ? "block" : "none";
+    document.getElementById("preview-count").textContent = rows.length;
+    document.getElementById("preview").innerHTML = rows.length === 0 && hasInput
+      ? `<div class="bulk-row err"><span class="bulk-row-idx">!</span><div>No valid rows — every line needs at least a name.</div><span></span></div>`
+      : rows.map(r => `
+        <div class="bulk-row ${r.errors.length ? 'err':''}">
+          <span class="bulk-row-idx">${r.idx}</span>
+          <div>
+            <div class="bulk-row-name">${escapeHtml(r.name)}${r.company ? ` <span class="bulk-row-meta">· ${escapeHtml(r.company)}</span>` : ""}</div>
+            <div class="bulk-row-meta">${TICKET_LABEL[r.ticket]} · ${STATUS_LABEL[r.status]}${r.notes ? ` · ${escapeHtml(r.notes)}` : ""}</div>
+            ${r.errors.length ? `<div class="bulk-row-err">${r.errors.join(", ")} — row still imported with defaults</div>` : ""}
+          </div>
+          <span></span>
+        </div>
+      `).join("");
+    const btn = document.getElementById("btn-save");
+    btn.disabled = rows.length === 0;
+    btn.textContent = `Add ${rows.length} guest${rows.length!==1?"s":""}`;
+  };
+  textarea.addEventListener("input", refreshPreview);
+  document.getElementById("btn-save").onclick = submitBulk;
+  openModal(true);
+  setTimeout(() => textarea.focus(), 100);
+}
+
+async function submitBulk(){
+  const raceId = document.getElementById("f-race").value;
+  const rows = parseBulk(document.getElementById("f-bulk").value).filter(r => r.name);
+  if (rows.length === 0) return;
+  const btn = document.getElementById("btn-save");
+  btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:12px;height:12px"></span> Saving…';
+
+  const prev = JSON.parse(JSON.stringify(DATA.guests));
+  rows.forEach(r => DATA.guests.push({ id: genId(), race: raceId, name: r.name, company: r.company, ticket: r.ticket, status: r.status, notes: r.notes }));
+
+  try {
+    await saveData(`Bulk add ${rows.length} guest${rows.length!==1?"s":""} to ${raceId}`);
+    state.activeRace = raceId;
+    renderAll();
+    closeModal();
+    toast("success", `Added ${rows.length} guest${rows.length!==1?"s":""}`);
+  } catch (e) {
+    DATA.guests = prev;
+    showModalError(e.message);
+    btn.disabled = false; btn.textContent = `Add ${rows.length} guest${rows.length!==1?"s":""}`;
+  }
+}
+
+// --- CSV export ---
+function csvEscape(v){
+  const s = v == null ? "" : String(v);
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
+  return s;
+}
+function exportCsv(scope){
+  const scopeGuests = scope === "current" ? guestsForRace(state.activeRace) : DATA.guests;
+  const headers = ["Race","Name","Company","Ticket","Status","Notes"];
+  const rows = scopeGuests.map(g => {
+    const r = DATA.races.find(x => x.id === g.race);
+    return [r ? r.short : g.race, g.name, g.company||"", TICKET_LABEL[g.ticket]||g.ticket||"", STATUS_LABEL[g.status]||g.status||"", g.notes||""];
+  });
+  const csv = "﻿" + [headers, ...rows].map(r => r.map(csvEscape).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const r = DATA.races.find(x => x.id === state.activeRace);
+  const name = scope === "current" ? `elms-guests-${r.id}` : `elms-guests-season`;
+  a.href = url; a.download = `${name}-${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast("success", `Exported ${scopeGuests.length} guest${scopeGuests.length!==1?"s":""}`);
+}
+
+// --- Settings ---
 function openSettingsModal(nudge){
   document.getElementById("modal-title").textContent = "GitHub token";
   const current = getToken();
   const masked = current ? current.slice(0,7) + "…" + current.slice(-4) : "";
   document.getElementById("modal-body").innerHTML = `
     <div id="modal-error" style="display:none"></div>
-    ${nudge ? `<div class="form-success" style="background:rgba(59,130,246,.1);border-color:rgba(59,130,246,.3);color:#93c5fd">Add a token to enable editing from the dashboard.</div>` : ""}
+    ${nudge ? `<div class="form-info">Add a token to enable editing from the dashboard.</div>` : ""}
     <div class="form-row">
       <label>Personal access token</label>
-      <input type="password" id="f-token" placeholder="${current ? masked : "ghp_... or github_pat_..."}" autocomplete="off" />
+      <input type="password" id="f-token" placeholder="${current ? masked : "github_pat_..."}" autocomplete="off" />
       <div class="form-hint">
-        Stored locally in your browser only (not shared). To create a token:<br>
-        1. Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">GitHub → Settings → Developer settings → Fine-grained tokens</a><br>
+        Stored locally in your browser only. To create a token:<br>
+        1. Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">Fine-grained tokens</a><br>
         2. Repository access: only <code>romainlrx171-ui/elms-guests</code><br>
         3. Permissions → Repository → <code>Contents: Read and write</code><br>
-        4. Copy the token and paste it above.
+        4. Paste the token above.
       </div>
     </div>
   `;
@@ -619,49 +917,62 @@ function openSettingsModal(nudge){
   document.getElementById("btn-save").onclick = () => {
     const t = document.getElementById("f-token").value.trim();
     if (t) setToken(t);
-    closeModal();
-    renderAll();
+    closeModal(); renderAll();
     if (t) toast("success", "Token saved — you can now edit guests.");
   };
   if (current) document.getElementById("btn-remove").onclick = () => {
-    setToken("");
-    closeModal();
-    renderAll();
+    setToken(""); closeModal(); renderAll();
     toast("success", "Token removed — back to read-only.");
   };
-  openModal();
+  openModal(false);
 }
 
 function showModalError(msg){
   const el = document.getElementById("modal-error");
-  el.className = "form-error";
-  el.textContent = msg;
-  el.style.display = "block";
+  el.className = "form-error"; el.textContent = msg; el.style.display = "block";
 }
-
 function toast(kind, msg){
   const el = document.getElementById("toast");
-  el.className = `toast show ${kind}`;
-  el.textContent = msg;
+  el.className = `toast show ${kind}`; el.textContent = msg;
   setTimeout(() => el.classList.remove("show"), 3200);
 }
 
-// --- Init ---
+// --- Events ---
 document.getElementById("search").addEventListener("input", e => { state.search = e.target.value; renderTable(); });
 document.getElementById("filter-status").addEventListener("change", e => { state.status = e.target.value; renderTable(); });
 document.getElementById("filter-ticket").addEventListener("change", e => { state.ticket = e.target.value; renderTable(); });
 document.getElementById("btn-add").addEventListener("click", () => openGuestModal(null));
+document.getElementById("btn-bulk").addEventListener("click", openBulkModal);
 document.getElementById("btn-settings").addEventListener("click", () => openSettingsModal(false));
 document.getElementById("banner-setup").addEventListener("click", () => openSettingsModal(true));
+document.getElementById("btn-print").addEventListener("click", () => window.print());
 document.getElementById("overlay").addEventListener("click", closeModal);
 document.getElementById("modal-close").addEventListener("click", closeModal);
-document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+
+const exportDd = document.getElementById("export-dropdown");
+document.getElementById("btn-export").addEventListener("click", (e) => { e.stopPropagation(); exportDd.classList.toggle("open"); });
+exportDd.querySelectorAll("[data-export]").forEach(b => b.addEventListener("click", (e) => {
+  e.stopPropagation(); exportDd.classList.remove("open"); exportCsv(b.dataset.export);
+}));
+document.addEventListener("click", () => exportDd.classList.remove("open"));
+
+document.addEventListener("keydown", e => {
+  const active = document.activeElement;
+  const isTyping = active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.tagName === "SELECT");
+  if (e.key === "Escape") { closeModal(); return; }
+  if (isTyping) return;
+  if (document.getElementById("modal").classList.contains("open")) return;
+  if (e.key === "/" ) { e.preventDefault(); document.getElementById("search").focus(); }
+  else if (e.key.toLowerCase() === "n" && hasToken()) { e.preventDefault(); openGuestModal(null); }
+  else if (e.key.toLowerCase() === "b" && hasToken()) { e.preventDefault(); openBulkModal(); }
+});
+
+// Refresh the "last updated" label every minute
+setInterval(renderFooterMeta, 60000);
 
 (async () => {
-  try {
-    await loadData();
-    renderAll();
-  } catch (e) {
+  try { await loadData(); renderAll(); }
+  catch (e) {
     document.getElementById("table-container").innerHTML = `<div class="empty"><h3>Failed to load data</h3><p>${escapeHtml(e.message)}</p></div>`;
   }
 })();
