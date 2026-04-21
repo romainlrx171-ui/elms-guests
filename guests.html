@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ELMS 2026 — Guest Tracker</title>
 <style>
-:root{--bg:#0a0a0f;--card:#12121a;--border:#1e1e2e;--text:#e0e0e8;--dim:#6b6b80;--dim2:#8a8aa0;--accent:#dc2626;--accent2:#ef4444;--green:#22c55e;--yellow:#eab308;--blue:#3b82f6;--purple:#a855f7;--orange:#f97316;--pink:#ec4899;--cyan:#06b6d4}
+:root{--bg:#0a0a0f;--card:#12121a;--card2:#181825;--border:#1e1e2e;--border2:#2a2a3e;--text:#e0e0e8;--dim:#6b6b80;--dim2:#8a8aa0;--accent:#dc2626;--accent2:#ef4444;--green:#22c55e;--yellow:#eab308;--blue:#3b82f6;--purple:#a855f7;--orange:#f97316;--pink:#ec4899;--cyan:#06b6d4}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
 
@@ -15,6 +15,9 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .header-stats{display:flex;gap:24px;flex-wrap:wrap}
 .stat{text-align:center;min-width:70px}.stat-num{font-size:26px;font-weight:800;line-height:1}.stat-label{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1px;margin-top:4px}
 .stat-num.red{color:var(--accent2)}.stat-num.green{color:var(--green)}.stat-num.yellow{color:var(--yellow)}.stat-num.blue{color:var(--blue)}.stat-num.purple{color:var(--purple)}
+.header-actions{display:flex;gap:8px}
+.btn-settings{background:var(--card);border:1px solid var(--border);color:var(--dim);padding:8px 12px;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px}
+.btn-settings:hover{border-color:var(--dim2);color:var(--text)}
 
 .race-tabs{display:flex;gap:6px;padding:14px 28px;overflow-x:auto;border-bottom:1px solid var(--border);background:var(--card);scrollbar-width:thin}
 .race-tab{flex-shrink:0;padding:10px 16px;border-radius:8px;border:1px solid var(--border);background:var(--bg);cursor:pointer;transition:.2s;min-width:160px;display:flex;flex-direction:column;gap:3px;font-family:inherit;color:var(--text);text-align:left}
@@ -24,7 +27,6 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .race-tab.home-race.active{border-color:var(--yellow);background:rgba(234,179,8,.1);box-shadow:0 0 0 1px rgba(234,179,8,.3)}
 .race-tab-top{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);font-weight:600}
 .race-tab-flag{font-size:14px}
-.race-tab-name{font-size:13px;font-weight:700}
 .race-tab-date{font-size:11px;color:var(--dim2);margin-top:2px}
 .race-tab-count{font-size:10px;font-weight:700;padding:2px 6px;border-radius:10px;background:rgba(255,255,255,.08);color:var(--dim2);align-self:flex-start;margin-top:4px}
 .race-tab.active .race-tab-count{background:rgba(220,38,38,.25);color:#fca5a5}
@@ -42,7 +44,9 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .controls input:focus,.controls select:focus{border-color:var(--accent)}
 .controls input{width:260px}
 .controls-spacer{flex:1}
-.controls-info{font-size:12px;color:var(--dim);font-style:italic}
+.btn-primary{background:var(--accent);color:#fff;border:1px solid var(--accent);padding:8px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;transition:.15s}
+.btn-primary:hover{background:var(--accent2)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed}
 
 .table-wrap{padding:16px 28px 40px;overflow-x:auto}
 table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;font-size:13px}
@@ -52,8 +56,11 @@ td{padding:14px;border-bottom:1px solid var(--border);vertical-align:top}
 tbody tr:last-child td{border-bottom:none}
 tbody tr:hover{background:rgba(255,255,255,.015)}
 .td-name{font-weight:600;color:var(--text)}
-.td-company{color:var(--dim2);font-size:12px;margin-top:2px}
 .td-notes{color:var(--dim2);font-size:12px;line-height:1.4;max-width:320px;white-space:pre-wrap}
+.td-actions{white-space:nowrap;text-align:right;width:1px}
+.row-action{background:transparent;border:1px solid var(--border);color:var(--dim2);padding:5px 10px;border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;margin-left:4px;transition:.15s}
+.row-action:hover{color:var(--text);border-color:var(--dim2)}
+.row-action.danger:hover{color:#f87171;border-color:#f87171}
 
 .tag{display:inline-block;padding:3px 9px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap;letter-spacing:.3px}
 .ticket-kessel{background:rgba(34,197,94,.15);color:#4ade80}
@@ -71,17 +78,52 @@ tbody tr:hover{background:rgba(255,255,255,.015)}
 .empty{padding:60px 28px;text-align:center;color:var(--dim)}
 .empty h3{font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px}
 .empty p{font-size:13px;max-width:520px;margin:0 auto;line-height:1.6}
-.empty code{background:var(--card);padding:2px 8px;border-radius:4px;color:var(--accent2);font-family:ui-monospace,monospace;font-size:12px}
 
-footer{padding:24px 28px;border-top:1px solid var(--border);background:var(--card);color:var(--dim);font-size:12px;line-height:1.7}
-footer strong{color:var(--text)}
-footer code{background:var(--bg);padding:2px 8px;border-radius:4px;color:var(--accent2);font-family:ui-monospace,monospace;font-size:11px}
-footer a{color:var(--blue);text-decoration:none}
-footer a:hover{text-decoration:underline}
+.loading{padding:80px 28px;text-align:center;color:var(--dim);font-size:13px}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.1);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:900;opacity:0;pointer-events:none;transition:opacity .2s;backdrop-filter:blur(3px)}
+.overlay.open{opacity:1;pointer-events:auto}
+.modal{position:fixed;top:50%;left:50%;transform:translate(-50%,-48%);width:min(520px,92vw);max-height:90vh;background:var(--card2);border:1px solid var(--border2);border-radius:12px;z-index:901;opacity:0;pointer-events:none;transition:.25s;overflow-y:auto;display:flex;flex-direction:column}
+.modal.open{opacity:1;pointer-events:auto;transform:translate(-50%,-50%)}
+.modal-header{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--card2);z-index:1}
+.modal-header h3{font-size:17px;font-weight:700}
+.modal-close{background:transparent;border:none;color:var(--dim);font-size:22px;cursor:pointer;line-height:1;padding:4px 8px}
+.modal-close:hover{color:var(--text)}
+.modal-body{padding:20px 24px;flex:1}
+.modal-footer{padding:14px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;position:sticky;bottom:0;background:var(--card2)}
+.btn-secondary{background:var(--card);color:var(--text);border:1px solid var(--border);padding:8px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn-secondary:hover{border-color:var(--dim2)}
+.btn-danger{background:transparent;color:#f87171;border:1px solid rgba(239,68,68,.4);padding:8px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.btn-danger:hover{background:rgba(239,68,68,.1)}
+
+.form-row{margin-bottom:16px}
+.form-row label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--dim);font-weight:700;margin-bottom:6px}
+.form-row input,.form-row select,.form-row textarea{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border);padding:10px 12px;border-radius:6px;font-size:13px;outline:none;font-family:inherit}
+.form-row input:focus,.form-row select:focus,.form-row textarea:focus{border-color:var(--accent)}
+.form-row textarea{min-height:80px;resize:vertical}
+.form-hint{font-size:11px;color:var(--dim);margin-top:4px;line-height:1.5}
+.form-hint a{color:var(--blue);text-decoration:none}
+.form-hint a:hover{text-decoration:underline}
+.form-hint code{background:var(--bg);padding:1px 5px;border-radius:3px;color:var(--accent2);font-family:ui-monospace,monospace;font-size:10px}
+.form-error{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#fca5a5;padding:10px 12px;border-radius:6px;font-size:12px;margin-bottom:12px;line-height:1.5}
+.form-success{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#86efac;padding:10px 12px;border-radius:6px;font-size:12px;margin-bottom:12px}
+
+.toast{position:fixed;bottom:24px;right:24px;background:var(--card2);border:1px solid var(--border2);padding:12px 18px;border-radius:8px;font-size:13px;font-weight:600;z-index:1000;opacity:0;transform:translateY(10px);transition:.25s;box-shadow:0 10px 30px rgba(0,0,0,.4);display:flex;align-items:center;gap:10px}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.success{border-color:rgba(34,197,94,.5);color:#86efac}
+.toast.error{border-color:rgba(239,68,68,.5);color:#fca5a5}
+
+.readonly-banner{padding:10px 28px;background:rgba(234,179,8,.08);border-bottom:1px solid rgba(234,179,8,.2);color:#facc15;font-size:12px;display:flex;align-items:center;gap:10px;justify-content:center;text-align:center;flex-wrap:wrap}
+.readonly-banner button{background:transparent;border:1px solid rgba(234,179,8,.4);color:var(--yellow);padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-weight:600;font-family:inherit}
+.readonly-banner button:hover{background:rgba(234,179,8,.15)}
+
+footer{padding:20px 28px;border-top:1px solid var(--border);background:var(--card);color:var(--dim);font-size:11px;line-height:1.7;text-align:center}
+footer code{background:var(--bg);padding:1px 6px;border-radius:3px;color:var(--accent2);font-family:ui-monospace,monospace;font-size:10px}
 
 @media (max-width:700px){
-  .header,.race-header,.controls,.table-wrap{padding-left:14px;padding-right:14px}
-  .race-tabs{padding-left:14px;padding-right:14px}
+  .header,.race-header,.controls,.table-wrap,.race-tabs,.readonly-banner,footer{padding-left:14px;padding-right:14px}
   .controls input{width:100%}
   th,td{padding:10px 8px}
 }
@@ -95,10 +137,17 @@ footer a:hover{text-decoration:underline}
     <div class="header-sub">Internal tool — Kessel Racing / Ferrari 296 GT3 / Romain Leroux</div>
   </div>
   <div class="header-stats" id="header-stats"></div>
+  <div class="header-actions">
+    <button class="btn-settings" id="btn-settings" title="GitHub token">⚙ Settings</button>
+  </div>
+</div>
+
+<div class="readonly-banner" id="readonly-banner" style="display:none">
+  <span>🔒 Read-only mode — add a GitHub token to edit guests from the dashboard</span>
+  <button id="banner-setup">Set up editing</button>
 </div>
 
 <div class="race-tabs" id="race-tabs"></div>
-
 <div class="race-header" id="race-header"></div>
 
 <div class="controls">
@@ -118,34 +167,109 @@ footer a:hover{text-decoration:underline}
     <option value="vip">VIP Box</option>
   </select>
   <div class="controls-spacer"></div>
-  <div class="controls-info">Edit via <code style="background:var(--bg);padding:2px 6px;border-radius:3px;color:var(--accent2);font-family:ui-monospace,monospace">guests-data.js</code></div>
+  <button class="btn-primary" id="btn-add">＋ Add guest</button>
 </div>
 
-<div id="table-container"></div>
+<div id="table-container">
+  <div class="loading"><span class="spinner"></span>Loading guests…</div>
+</div>
 
 <footer>
-  <strong>How to update this page</strong><br>
-  1. Edit <code>guests-data.js</code> — add or modify guests in <code>GUESTS_DATA.guests</code><br>
-  2. <code>git add guests-data.js &amp;&amp; git commit -m "update guests" &amp;&amp; git push</code><br>
-  3. GitHub Pages redeploys in ~30s — refresh the page (F5)<br><br>
-  <strong>Guest object</strong>: <code>{ id, race, name, company, ticket, status, notes }</code><br>
-  <strong>ticket</strong>: <code>kessel</code> · <code>us</code> · <code>themselves</code> · <code>vip</code> &nbsp;·&nbsp;
-  <strong>status</strong>: <code>confirmed</code> · <code>invited</code> · <code>declined</code> · <code>noreply</code> &nbsp;·&nbsp;
-  <strong>race</strong>: <code>prologue</code> · <code>r1</code> · <code>r2</code> · <code>r3</code> · <code>r4</code> · <code>r5</code> · <code>r6</code>
+  Data stored in <code>guests-data.json</code> · Writes commit directly to GitHub via the browser · <a href="https://github.com/romainlrx171-ui/elms-guests" style="color:var(--blue);text-decoration:none">Source on GitHub</a>
 </footer>
 
-<script src="guests-data.js"></script>
+<!-- Modal -->
+<div class="overlay" id="overlay"></div>
+<div class="modal" id="modal">
+  <div class="modal-header">
+    <h3 id="modal-title">Add guest</h3>
+    <button class="modal-close" id="modal-close">×</button>
+  </div>
+  <div class="modal-body" id="modal-body"></div>
+  <div class="modal-footer" id="modal-footer"></div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
 <script>
+const REPO_OWNER = "romainlrx171-ui";
+const REPO_NAME = "elms-guests";
+const DATA_FILE = "guests-data.json";
+const BRANCH = "main";
+
+const TOKEN_KEY = "elms_guests_gh_token";
 const STATUS_LABEL = { confirmed:"Confirmed", invited:"Invited", declined:"Declined", noreply:"No reply" };
 const TICKET_LABEL = { kessel:"Kessel", us:"Us", themselves:"Themselves", vip:"VIP Box" };
 
-const state = {
-  activeRace: GUESTS_DATA.races.find(r => r.home)?.id || GUESTS_DATA.races[0].id,
-  search: "",
-  status: "",
-  ticket: ""
-};
+let DATA = null;
+let fileSha = null;
+const state = { activeRace: null, search: "", status: "", ticket: "" };
 
+// --- GitHub API ---
+function getToken(){ return localStorage.getItem(TOKEN_KEY) || ""; }
+function setToken(t){ if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); updateReadonlyBanner(); }
+function hasToken(){ return !!getToken(); }
+
+async function loadData(){
+  // Try GitHub API first (gets fresh SHA for writes); fallback to raw fetch for anonymous readers.
+  try {
+    const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DATA_FILE}?ref=${BRANCH}`, {
+      headers: { "Accept":"application/vnd.github+json" }
+    });
+    if (!res.ok) throw new Error("API failed");
+    const json = await res.json();
+    fileSha = json.sha;
+    const content = atob(json.content.replace(/\n/g,""));
+    // Handle UTF-8 from base64
+    const bytes = Uint8Array.from(content, c => c.charCodeAt(0));
+    DATA = JSON.parse(new TextDecoder("utf-8").decode(bytes));
+  } catch (e) {
+    const res = await fetch(`${DATA_FILE}?t=${Date.now()}`);
+    DATA = await res.json();
+  }
+  state.activeRace = DATA.races.find(r => r.home)?.id || DATA.races[0].id;
+}
+
+async function saveData(commitMessage){
+  const token = getToken();
+  if (!token) throw new Error("No GitHub token set — click Settings to add one.");
+
+  // Encode JSON as UTF-8 base64
+  const jsonStr = JSON.stringify(DATA, null, 2) + "\n";
+  const utf8 = new TextEncoder().encode(jsonStr);
+  let binary = ""; utf8.forEach(b => binary += String.fromCharCode(b));
+  const base64 = btoa(binary);
+
+  const body = { message: commitMessage, content: base64, branch: BRANCH };
+  if (fileSha) body.sha = fileSha;
+
+  const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DATA_FILE}`, {
+    method: "PUT",
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Accept": "application/vnd.github+json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    if (res.status === 409 || (err.message && err.message.includes("sha"))) {
+      throw new Error("Someone else edited this list. Refresh to get the latest version, then redo your change.");
+    }
+    if (res.status === 401 || res.status === 403) {
+      throw new Error("GitHub rejected the token (401/403). Check it has Contents:write on this repo.");
+    }
+    throw new Error(err.message || `Save failed (${res.status})`);
+  }
+
+  const json = await res.json();
+  fileSha = json.content.sha;
+}
+
+// --- Utilities ---
 function fmtDate(iso, endIso){
   if (!iso) return "";
   const opts = { day:"numeric", month:"long", year:"numeric" };
@@ -167,9 +291,14 @@ function daysUntil(iso){
   return `${-diff} day${-diff!==1?"s":""} ago`;
 }
 
-function guestsForRace(raceId){
-  return GUESTS_DATA.guests.filter(g => g.race === raceId);
+function escapeHtml(s){
+  if (s == null) return "";
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
+
+function genId(){ return `g-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}`; }
+
+function guestsForRace(raceId){ return DATA.guests.filter(g => g.race === raceId); }
 
 function filteredGuests(raceId){
   const q = state.search.toLowerCase().trim();
@@ -177,37 +306,34 @@ function filteredGuests(raceId){
     if (state.status && g.status !== state.status) return false;
     if (state.ticket && g.ticket !== state.ticket) return false;
     if (q){
-      const hay = `${g.name} ${g.company||""} ${g.notes||""}`.toLowerCase();
+      const hay = `${g.name||""} ${g.company||""} ${g.notes||""}`.toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
   });
 }
 
+// --- Rendering ---
 function renderHeaderStats(){
-  const total = GUESTS_DATA.guests.length;
-  const confirmed = GUESTS_DATA.guests.filter(g => g.status === "confirmed").length;
-  const pending = GUESTS_DATA.guests.filter(g => g.status === "invited" || g.status === "noreply").length;
-  const declined = GUESTS_DATA.guests.filter(g => g.status === "declined").length;
-  const races = new Set(GUESTS_DATA.guests.map(g => g.race)).size;
+  const total = DATA.guests.length;
+  const confirmed = DATA.guests.filter(g => g.status === "confirmed").length;
+  const pending = DATA.guests.filter(g => g.status === "invited" || g.status === "noreply").length;
+  const declined = DATA.guests.filter(g => g.status === "declined").length;
+  const races = new Set(DATA.guests.map(g => g.race)).size;
 
   document.getElementById("header-stats").innerHTML = `
     <div class="stat"><div class="stat-num">${total}</div><div class="stat-label">Season guests</div></div>
     <div class="stat"><div class="stat-num green">${confirmed}</div><div class="stat-label">Confirmed</div></div>
     <div class="stat"><div class="stat-num yellow">${pending}</div><div class="stat-label">Pending</div></div>
     <div class="stat"><div class="stat-num red">${declined}</div><div class="stat-label">Declined</div></div>
-    <div class="stat"><div class="stat-num blue">${races}/${GUESTS_DATA.races.length}</div><div class="stat-label">Active races</div></div>
+    <div class="stat"><div class="stat-num blue">${races}/${DATA.races.length}</div><div class="stat-label">Active races</div></div>
   `;
 }
 
 function renderRaceTabs(){
-  const tabs = GUESTS_DATA.races.map(r => {
+  const tabs = DATA.races.map(r => {
     const count = guestsForRace(r.id).length;
-    const cls = [
-      "race-tab",
-      r.id === state.activeRace ? "active" : "",
-      r.home ? "home-race" : ""
-    ].filter(Boolean).join(" ");
+    const cls = ["race-tab", r.id === state.activeRace ? "active" : "", r.home ? "home-race" : ""].filter(Boolean).join(" ");
     return `
       <button class="${cls}" data-race="${r.id}">
         <div class="race-tab-top"><span class="race-tab-flag">${r.flag}</span>${r.short}${r.home ? ' <span class="home-badge">HOME</span>' : ""}</div>
@@ -219,15 +345,12 @@ function renderRaceTabs(){
   const el = document.getElementById("race-tabs");
   el.innerHTML = tabs;
   el.querySelectorAll(".race-tab").forEach(btn => {
-    btn.addEventListener("click", () => {
-      state.activeRace = btn.dataset.race;
-      renderAll();
-    });
+    btn.addEventListener("click", () => { state.activeRace = btn.dataset.race; renderAll(); });
   });
 }
 
 function renderRaceHeader(){
-  const r = GUESTS_DATA.races.find(x => x.id === state.activeRace);
+  const r = DATA.races.find(x => x.id === state.activeRace);
   const gs = guestsForRace(r.id);
   const confirmed = gs.filter(g => g.status === "confirmed").length;
   const pending = gs.filter(g => g.status === "invited" || g.status === "noreply").length;
@@ -258,13 +381,8 @@ function renderRaceHeader(){
   `;
 }
 
-function escapeHtml(s){
-  if (s == null) return "";
-  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-}
-
 function renderTable(){
-  const r = GUESTS_DATA.races.find(x => x.id === state.activeRace);
+  const r = DATA.races.find(x => x.id === state.activeRace);
   const gs = filteredGuests(r.id);
   const container = document.getElementById("table-container");
 
@@ -274,25 +392,28 @@ function renderTable(){
       <div class="empty">
         <h3>${totalForRace === 0 ? "No guests yet for this race" : "No guest matches the current filters"}</h3>
         <p>${totalForRace === 0
-          ? `Add guests by editing <code>guests-data.js</code> — set <code>race: "${r.id}"</code> to attach them to <strong>${r.name}</strong>.`
+          ? `Click <strong>＋ Add guest</strong> above to invite someone to <strong>${escapeHtml(r.name)}</strong>.`
           : `Adjust the filters or search to see more guests.`}</p>
       </div>
     `;
     return;
   }
 
+  const canEdit = hasToken();
   const rows = gs.map(g => {
     const ticketLabel = TICKET_LABEL[g.ticket] || g.ticket || "—";
     const statusLabel = STATUS_LABEL[g.status] || g.status || "—";
     return `
       <tr>
-        <td>
-          <div class="td-name">${escapeHtml(g.name)}</div>
-        </td>
+        <td><div class="td-name">${escapeHtml(g.name)}</div></td>
         <td>${g.company ? escapeHtml(g.company) : '<span style="color:var(--dim)">—</span>'}</td>
         <td>${g.ticket ? `<span class="tag ticket-${g.ticket}">${ticketLabel}</span>` : "—"}</td>
         <td>${g.status ? `<span class="status status-${g.status}">${statusLabel}</span>` : "—"}</td>
         <td class="td-notes">${g.notes ? escapeHtml(g.notes) : ""}</td>
+        ${canEdit ? `<td class="td-actions">
+          <button class="row-action" data-edit="${g.id}">Edit</button>
+          <button class="row-action danger" data-delete="${g.id}">Delete</button>
+        </td>` : ""}
       </tr>
     `;
   }).join("");
@@ -307,12 +428,23 @@ function renderTable(){
             <th>Ticket</th>
             <th>Status</th>
             <th>Notes</th>
+            ${canEdit ? "<th></th>" : ""}
           </tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
   `;
+
+  if (canEdit){
+    container.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => openGuestModal(b.dataset.edit)));
+    container.querySelectorAll("[data-delete]").forEach(b => b.addEventListener("click", () => confirmDelete(b.dataset.delete)));
+  }
+}
+
+function updateReadonlyBanner(){
+  document.getElementById("readonly-banner").style.display = hasToken() ? "none" : "flex";
+  document.getElementById("btn-add").style.display = hasToken() ? "inline-flex" : "none";
 }
 
 function renderAll(){
@@ -320,13 +452,219 @@ function renderAll(){
   renderRaceTabs();
   renderRaceHeader();
   renderTable();
+  updateReadonlyBanner();
 }
 
+// --- Modal ---
+function openModal(){ document.getElementById("overlay").classList.add("open"); document.getElementById("modal").classList.add("open"); }
+function closeModal(){ document.getElementById("overlay").classList.remove("open"); document.getElementById("modal").classList.remove("open"); }
+
+function openGuestModal(guestId){
+  if (!hasToken()) { openSettingsModal(true); return; }
+  const editing = guestId ? DATA.guests.find(g => g.id === guestId) : null;
+  const g = editing || { race: state.activeRace, name:"", company:"", ticket:"us", status:"invited", notes:"" };
+
+  document.getElementById("modal-title").textContent = editing ? "Edit guest" : "Add guest";
+  document.getElementById("modal-body").innerHTML = `
+    <div id="modal-error" style="display:none"></div>
+    <div class="form-row">
+      <label>Race</label>
+      <select id="f-race">
+        ${DATA.races.map(r => `<option value="${r.id}" ${r.id===g.race?"selected":""}>${r.flag} ${r.short} — ${fmtDate(r.date)}</option>`).join("")}
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Name *</label>
+      <input type="text" id="f-name" value="${escapeHtml(g.name)}" placeholder="e.g. John Doe" />
+    </div>
+    <div class="form-row">
+      <label>Company</label>
+      <input type="text" id="f-company" value="${escapeHtml(g.company||"")}" placeholder="e.g. Infovista" />
+    </div>
+    <div class="form-row">
+      <label>Ticket source *</label>
+      <select id="f-ticket">
+        <option value="kessel" ${g.ticket==="kessel"?"selected":""}>Kessel</option>
+        <option value="us" ${g.ticket==="us"?"selected":""}>Us (we provide)</option>
+        <option value="themselves" ${g.ticket==="themselves"?"selected":""}>Themselves (self-paid)</option>
+        <option value="vip" ${g.ticket==="vip"?"selected":""}>VIP Box (loge VIP)</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Status *</label>
+      <select id="f-status">
+        <option value="invited" ${g.status==="invited"?"selected":""}>Invited</option>
+        <option value="confirmed" ${g.status==="confirmed"?"selected":""}>Confirmed</option>
+        <option value="declined" ${g.status==="declined"?"selected":""}>Declined</option>
+        <option value="noreply" ${g.status==="noreply"?"selected":""}>No reply</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Notes</label>
+      <textarea id="f-notes" placeholder="Anything useful — hotel, flight, dietary, VIP level…">${escapeHtml(g.notes||"")}</textarea>
+    </div>
+  `;
+  document.getElementById("modal-footer").innerHTML = `
+    <button class="btn-secondary" id="btn-cancel">Cancel</button>
+    <button class="btn-primary" id="btn-save">${editing ? "Save changes" : "Add guest"}</button>
+  `;
+  document.getElementById("btn-cancel").onclick = closeModal;
+  document.getElementById("btn-save").onclick = () => submitGuest(editing?.id || null);
+  openModal();
+  setTimeout(() => document.getElementById("f-name").focus(), 100);
+}
+
+async function submitGuest(editingId){
+  const name = document.getElementById("f-name").value.trim();
+  if (!name) { showModalError("Name is required."); return; }
+
+  const draft = {
+    id: editingId || genId(),
+    race: document.getElementById("f-race").value,
+    name,
+    company: document.getElementById("f-company").value.trim(),
+    ticket: document.getElementById("f-ticket").value,
+    status: document.getElementById("f-status").value,
+    notes: document.getElementById("f-notes").value.trim()
+  };
+
+  const btn = document.getElementById("btn-save");
+  btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:12px;height:12px"></span> Saving…';
+
+  // Optimistic update
+  const prevGuests = JSON.parse(JSON.stringify(DATA.guests));
+  if (editingId) {
+    const idx = DATA.guests.findIndex(g => g.id === editingId);
+    DATA.guests[idx] = draft;
+  } else {
+    DATA.guests.push(draft);
+  }
+
+  try {
+    await saveData(editingId ? `Update guest ${name}` : `Add guest ${name}`);
+    state.activeRace = draft.race;
+    renderAll();
+    closeModal();
+    toast("success", editingId ? `Updated ${name}` : `Added ${name}`);
+  } catch (e) {
+    DATA.guests = prevGuests; // rollback
+    showModalError(e.message);
+    btn.disabled = false; btn.textContent = editingId ? "Save changes" : "Add guest";
+  }
+}
+
+function confirmDelete(guestId){
+  const g = DATA.guests.find(x => x.id === guestId);
+  if (!g) return;
+  document.getElementById("modal-title").textContent = "Delete guest?";
+  document.getElementById("modal-body").innerHTML = `
+    <div id="modal-error" style="display:none"></div>
+    <p style="font-size:14px;line-height:1.6;color:var(--text)">Remove <strong>${escapeHtml(g.name)}</strong>${g.company ? ` (${escapeHtml(g.company)})` : ""} from the guest list? This will commit to GitHub immediately.</p>
+  `;
+  document.getElementById("modal-footer").innerHTML = `
+    <button class="btn-secondary" id="btn-cancel">Cancel</button>
+    <button class="btn-danger" id="btn-confirm">Delete</button>
+  `;
+  document.getElementById("btn-cancel").onclick = closeModal;
+  document.getElementById("btn-confirm").onclick = () => performDelete(guestId);
+  openModal();
+}
+
+async function performDelete(guestId){
+  const g = DATA.guests.find(x => x.id === guestId);
+  const btn = document.getElementById("btn-confirm");
+  btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:12px;height:12px"></span> Deleting…';
+
+  const prevGuests = JSON.parse(JSON.stringify(DATA.guests));
+  DATA.guests = DATA.guests.filter(x => x.id !== guestId);
+
+  try {
+    await saveData(`Remove guest ${g.name}`);
+    renderAll();
+    closeModal();
+    toast("success", `Removed ${g.name}`);
+  } catch (e) {
+    DATA.guests = prevGuests;
+    showModalError(e.message);
+    btn.disabled = false; btn.textContent = "Delete";
+  }
+}
+
+function openSettingsModal(nudge){
+  document.getElementById("modal-title").textContent = "GitHub token";
+  const current = getToken();
+  const masked = current ? current.slice(0,7) + "…" + current.slice(-4) : "";
+  document.getElementById("modal-body").innerHTML = `
+    <div id="modal-error" style="display:none"></div>
+    ${nudge ? `<div class="form-success" style="background:rgba(59,130,246,.1);border-color:rgba(59,130,246,.3);color:#93c5fd">Add a token to enable editing from the dashboard.</div>` : ""}
+    <div class="form-row">
+      <label>Personal access token</label>
+      <input type="password" id="f-token" placeholder="${current ? masked : "ghp_... or github_pat_..."}" autocomplete="off" />
+      <div class="form-hint">
+        Stored locally in your browser only (not shared). To create a token:<br>
+        1. Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">GitHub → Settings → Developer settings → Fine-grained tokens</a><br>
+        2. Repository access: only <code>romainlrx171-ui/elms-guests</code><br>
+        3. Permissions → Repository → <code>Contents: Read and write</code><br>
+        4. Copy the token and paste it above.
+      </div>
+    </div>
+  `;
+  document.getElementById("modal-footer").innerHTML = `
+    ${current ? `<button class="btn-danger" id="btn-remove">Remove token</button>` : ""}
+    <div style="flex:1"></div>
+    <button class="btn-secondary" id="btn-cancel">Close</button>
+    <button class="btn-primary" id="btn-save">Save token</button>
+  `;
+  document.getElementById("btn-cancel").onclick = closeModal;
+  document.getElementById("btn-save").onclick = () => {
+    const t = document.getElementById("f-token").value.trim();
+    if (t) setToken(t);
+    closeModal();
+    renderAll();
+    if (t) toast("success", "Token saved — you can now edit guests.");
+  };
+  if (current) document.getElementById("btn-remove").onclick = () => {
+    setToken("");
+    closeModal();
+    renderAll();
+    toast("success", "Token removed — back to read-only.");
+  };
+  openModal();
+}
+
+function showModalError(msg){
+  const el = document.getElementById("modal-error");
+  el.className = "form-error";
+  el.textContent = msg;
+  el.style.display = "block";
+}
+
+function toast(kind, msg){
+  const el = document.getElementById("toast");
+  el.className = `toast show ${kind}`;
+  el.textContent = msg;
+  setTimeout(() => el.classList.remove("show"), 3200);
+}
+
+// --- Init ---
 document.getElementById("search").addEventListener("input", e => { state.search = e.target.value; renderTable(); });
 document.getElementById("filter-status").addEventListener("change", e => { state.status = e.target.value; renderTable(); });
 document.getElementById("filter-ticket").addEventListener("change", e => { state.ticket = e.target.value; renderTable(); });
+document.getElementById("btn-add").addEventListener("click", () => openGuestModal(null));
+document.getElementById("btn-settings").addEventListener("click", () => openSettingsModal(false));
+document.getElementById("banner-setup").addEventListener("click", () => openSettingsModal(true));
+document.getElementById("overlay").addEventListener("click", closeModal);
+document.getElementById("modal-close").addEventListener("click", closeModal);
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
 
-renderAll();
+(async () => {
+  try {
+    await loadData();
+    renderAll();
+  } catch (e) {
+    document.getElementById("table-container").innerHTML = `<div class="empty"><h3>Failed to load data</h3><p>${escapeHtml(e.message)}</p></div>`;
+  }
+})();
 </script>
 </body>
 </html>

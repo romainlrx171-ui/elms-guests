@@ -1,0 +1,15 @@
+{
+  "season": "ELMS 2026",
+  "team": "Kessel Racing — Ferrari 296 GT3",
+  "driver": "Romain Leroux",
+  "races": [
+    { "id": "prologue", "name": "Prologue Test",             "short": "Prologue",       "circuit": "Barcelona-Catalunya", "country": "Spain",    "flag": "🇪🇸", "date": "2026-04-06", "endDate": "2026-04-07", "hashtag": "#ELMSTest" },
+    { "id": "r1",       "name": "Round 1 — 4H Barcelona",    "short": "R1 Barcelona",   "circuit": "Barcelona-Catalunya", "country": "Spain",    "flag": "🇪🇸", "date": "2026-04-12", "hashtag": "#4HBarcelona" },
+    { "id": "r2",       "name": "Round 2 — 4H Le Castellet", "short": "R2 Paul Ricard", "circuit": "Paul Ricard",         "country": "France",   "flag": "🇫🇷", "date": "2026-05-03", "hashtag": "#4HLeCastellet", "home": true },
+    { "id": "r3",       "name": "Round 3 — 4H Imola",        "short": "R3 Imola",       "circuit": "Imola",               "country": "Italy",    "flag": "🇮🇹", "date": "2026-07-05", "hashtag": "#4HImola" },
+    { "id": "r4",       "name": "Round 4 — 4H Spa",          "short": "R4 Spa",         "circuit": "Spa-Francorchamps",   "country": "Belgium",  "flag": "🇧🇪", "date": "2026-08-23", "hashtag": "#4HSpa" },
+    { "id": "r5",       "name": "Round 5 — 4H Silverstone",  "short": "R5 Silverstone", "circuit": "Silverstone",         "country": "UK",       "flag": "🇬🇧", "date": "2026-09-13", "hashtag": "#4HSilverstone" },
+    { "id": "r6",       "name": "Round 6 — 4H Portimao",     "short": "R6 Portimao",    "circuit": "Algarve — Portimão",  "country": "Portugal", "flag": "🇵🇹", "date": "2026-10-10", "hashtag": "#4HPortimao" }
+  ],
+  "guests": []
+}
