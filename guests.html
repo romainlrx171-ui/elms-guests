@@ -87,8 +87,9 @@ tbody tr.flash{animation:flash 1.5s ease-out}
 .tag{display:inline-block;padding:3px 9px;border-radius:4px;font-size:11px;font-weight:600;white-space:nowrap;letter-spacing:.3px}
 .ticket-kessel{background:rgba(34,197,94,.15);color:#4ade80}
 .ticket-us{background:rgba(59,130,246,.15);color:#60a5fa}
-.ticket-themselves{background:rgba(234,179,8,.15);color:#facc15}
-.ticket-vip{background:rgba(168,85,247,.15);color:#c084fc}
+.ticket-notprovided{background:rgba(107,114,128,.15);color:var(--dim2)}
+.hosp-kessel{background:rgba(168,85,247,.15);color:#c084fc;border:1px solid rgba(168,85,247,.3)}
+.hosp-notprovided{background:rgba(107,114,128,.1);color:var(--dim)}
 .category-professional{background:rgba(6,182,212,.15);color:#22d3ee}
 .category-personal{background:rgba(236,72,153,.15);color:#f472b6}
 
@@ -294,11 +295,15 @@ footer a:hover{text-decoration:underline}
     <option value="noreply">No reply</option>
   </select>
   <select id="filter-ticket">
-    <option value="">All ticket sources</option>
-    <option value="kessel">Kessel</option>
-    <option value="us">Us</option>
-    <option value="themselves">Themselves</option>
-    <option value="vip">VIP Box</option>
+    <option value="">All tickets</option>
+    <option value="kessel">Ticket: Kessel</option>
+    <option value="us">Ticket: Us</option>
+    <option value="notprovided">Ticket: Not provided</option>
+  </select>
+  <select id="filter-hospitality">
+    <option value="">All hospitality</option>
+    <option value="kessel">Hospitality: Kessel</option>
+    <option value="notprovided">Hospitality: Not provided</option>
   </select>
   <select id="filter-company">
     <option value="">All companies</option>
@@ -369,8 +374,10 @@ const TEAM_PASSWORD = "kessel2026";
 // Constants
 // ============================================================
 const STATUS_LABEL = { confirmed:"Confirmed", invited:"Invited", declined:"Declined", noreply:"No reply" };
-const TICKET_LABEL = { kessel:"Kessel", us:"Us", themselves:"Themselves", vip:"VIP Box" };
-const VALID_TICKETS = ["kessel","us","themselves","vip"];
+const TICKET_LABEL = { kessel:"Kessel", us:"Us", notprovided:"Not provided" };
+const VALID_TICKETS = ["kessel","us","notprovided"];
+const HOSPITALITY_LABEL = { kessel:"Kessel", notprovided:"Not provided" };
+const VALID_HOSPITALITY = ["kessel","notprovided"];
 const VALID_STATUSES = ["confirmed","invited","declined","noreply"];
 const PW_KEY = "elms_guests_team_pw";
 const AUTHOR_KEY = "elms_guests_author";
@@ -426,7 +433,7 @@ const ATT_LABEL = { pdf:"PDF", image:"Image", doc:"Doc", sheet:"Sheet", link:"Li
 let lastUpdate = null;
 let flashId = null;
 let initialLoadDone = false;
-const state = { activeRace: null, search: "", status: "", ticket: "", company: "", category: "", day: "", groupByCompany: false, sortBy: "name", sortDir: "asc" };
+const state = { activeRace: null, search: "", status: "", ticket: "", hospitality: "", company: "", category: "", day: "", groupByCompany: false, sortBy: "name", sortDir: "asc" };
 const VALID_CATEGORIES = ["personal","professional"];
 const CATEGORY_LABEL = { personal:"Personal", professional:"Professional" };
 const VALID_DAYS = ["fri","sat","sun"];
@@ -436,6 +443,16 @@ const DEFAULT_DAYS = ["sat","sun"];
 function guestDays(g){
   if (Array.isArray(g.days) && g.days.length) return g.days.filter(d => VALID_DAYS.includes(d));
   return DEFAULT_DAYS.slice();
+}
+function normalizeGuest(g){
+  let ticket = g.ticket;
+  let hospitality = g.hospitality;
+  // Legacy mapping: old "vip" = VIP Box = Kessel hospitality. Old "themselves" = self-paid = not provided.
+  if (ticket === "vip"){ ticket = "notprovided"; if (!hospitality) hospitality = "kessel"; }
+  else if (ticket === "themselves"){ ticket = "notprovided"; }
+  if (!VALID_TICKETS.includes(ticket)) ticket = "notprovided";
+  if (!VALID_HOSPITALITY.includes(hospitality)) hospitality = "notprovided";
+  return { ...g, ticket, hospitality };
 }
 
 // ============================================================
@@ -500,7 +517,7 @@ function attachListeners(){
   // Guests
   db.collection("guests").onSnapshot(snap => {
     DATA.guests = [];
-    snap.forEach(d => DATA.guests.push(d.data()));
+    snap.forEach(d => DATA.guests.push(normalizeGuest(d.data())));
     // Track most recent update
     let latest = null; let latestMsg = "";
     snap.forEach(d => {
@@ -602,11 +619,13 @@ function sortGuests(arr){
   const { sortBy, sortDir } = state;
   const dir = sortDir === "asc" ? 1 : -1;
   const statusOrder = { confirmed:0, invited:1, noreply:2, declined:3 };
-  const ticketOrder = { kessel:0, vip:1, us:2, themselves:3 };
+  const ticketOrder = { kessel:0, us:1, notprovided:2 };
+  const hospOrder = { kessel:0, notprovided:1 };
   return [...arr].sort((a,b) => {
     let av, bv;
     if (sortBy === "status") { av = statusOrder[a.status] ?? 99; bv = statusOrder[b.status] ?? 99; }
     else if (sortBy === "ticket") { av = ticketOrder[a.ticket] ?? 99; bv = ticketOrder[b.ticket] ?? 99; }
+    else if (sortBy === "hospitality") { av = hospOrder[a.hospitality||"notprovided"] ?? 99; bv = hospOrder[b.hospitality||"notprovided"] ?? 99; }
     else { av = (a[sortBy]||"").toString().toLowerCase(); bv = (b[sortBy]||"").toString().toLowerCase(); }
     if (av < bv) return -1*dir;
     if (av > bv) return 1*dir;
@@ -619,6 +638,7 @@ function filteredGuests(raceId){
   const base = guestsForRace(raceId).filter(g => {
     if (state.status && g.status !== state.status) return false;
     if (state.ticket && g.ticket !== state.ticket) return false;
+    if (state.hospitality && (g.hospitality||"notprovided") !== state.hospitality) return false;
     if (state.company && (g.company||"") !== state.company) return false;
     if (state.category && (g.category||"professional") !== state.category) return false;
     if (state.day && !guestDays(g).includes(state.day)) return false;
@@ -662,7 +682,7 @@ function renderHeaderStats(){
   const scoped = r ? filteredGuests(r.id) : [];
   const h = headsByDay(scoped);
   const scope = r ? r.short : "—";
-  const anyFilter = !!(state.status || state.ticket || state.company || state.category || state.day || state.search.trim());
+  const anyFilter = !!(state.status || state.ticket || state.hospitality || state.company || state.category || state.day || state.search.trim());
   const filterHint = anyFilter ? `<span style="color:var(--dim2);font-size:10px;margin-left:6px">(filtered)</span>` : "";
 
   document.getElementById("header-stats").innerHTML = `
@@ -697,14 +717,6 @@ function renderRaceHeader(){
   if (!r) { document.getElementById("race-header").innerHTML = ""; return; }
   const gs = guestsForRace(r.id);
   const heads = totalHeads(gs);
-  const pros = gs.filter(g => (g.category||"professional") === "professional");
-  const personals = gs.filter(g => g.category === "personal");
-  const confirmed = gs.filter(g => g.status === "confirmed").length;
-  const pending = gs.filter(g => g.status === "invited" || g.status === "noreply").length;
-  const tUs = gs.filter(g => g.ticket === "us").length;
-  const tKessel = gs.filter(g => g.ticket === "kessel").length;
-  const tVip = gs.filter(g => g.ticket === "vip").length;
-  const tThem = gs.filter(g => g.ticket === "themselves").length;
 
   document.getElementById("race-header").innerHTML = `
     <div class="race-header-left">
@@ -717,16 +729,7 @@ function renderRaceHeader(){
       </div>
     </div>
     <div class="race-mini-stats">
-      <div class="stat"><div class="stat-num">${gs.length}</div><div class="stat-label">Guests</div></div>
-      <div class="stat"><div class="stat-num orange">${heads}</div><div class="stat-label">Total heads</div></div>
-      <div class="stat"><div class="stat-num green">${confirmed}</div><div class="stat-label">Confirmed</div></div>
-      <div class="stat"><div class="stat-num yellow">${pending}</div><div class="stat-label">Pending</div></div>
-      <div class="stat"><div class="stat-num cyan">${pros.length}</div><div class="stat-label">Professional</div></div>
-      <div class="stat"><div class="stat-num pink">${personals.length}</div><div class="stat-label">Personal</div></div>
-      <div class="stat"><div class="stat-num blue">${tUs}</div><div class="stat-label">Tickets: Us</div></div>
-      <div class="stat"><div class="stat-num green">${tKessel}</div><div class="stat-label">Tickets: Kessel</div></div>
-      <div class="stat"><div class="stat-num purple">${tVip}</div><div class="stat-label">VIP Box</div></div>
-      <div class="stat"><div class="stat-num yellow">${tThem}</div><div class="stat-label">Self-paid</div></div>
+      <div class="stat"><div class="stat-num orange">${heads}</div><div class="stat-label">Headcount · ${gs.length} guest${gs.length!==1?"s":""}</div></div>
     </div>
   `;
 }
@@ -762,9 +765,11 @@ function renderTable(){
   const canEdit = hasEditAccess();
 
   function rowHtml(g){
-    const ticketLabel = TICKET_LABEL[g.ticket] || g.ticket || "—";
+    const ticketLabel = TICKET_LABEL[g.ticket] || "—";
     const statusLabel = STATUS_LABEL[g.status] || g.status || "—";
     const catLabel = CATEGORY_LABEL[g.category||"professional"];
+    const hosp = g.hospitality || "notprovided";
+    const hospLabel = HOSPITALITY_LABEL[hosp] || "—";
     const flashCls = g.id === flashId ? " flash" : "";
     const plus = Number(g.plusOnes)||0;
     const plusBadge = plus > 0 ? ` <span class="plus-badge" title="${plus} plus-one${plus!==1?"s":""}">+${plus}</span>` : "";
@@ -776,7 +781,8 @@ function renderTable(){
         <td><div class="td-name">${escapeHtml(g.name)}${plusBadge}${dayChips}</div>${authorLine}</td>
         <td>${g.company ? escapeHtml(g.company) : '<span style="color:var(--dim)">—</span>'}</td>
         <td><span class="tag category-${g.category||"professional"}">${catLabel}</span></td>
-        <td>${g.ticket ? `<span class="tag ticket-${g.ticket}">${ticketLabel}</span>` : "—"}</td>
+        <td><span class="tag ticket-${g.ticket||"notprovided"}">${ticketLabel}</span></td>
+        <td>${hosp === "kessel" ? `<span class="tag hosp-kessel">🍽 ${hospLabel}</span>` : `<span class="tag hosp-notprovided">${hospLabel}</span>`}</td>
         <td>${g.status ? `<span class="status status-${g.status}">${statusLabel}</span>` : "—"}</td>
         <td class="td-notes">${g.notes ? escapeHtml(g.notes) : ""}</td>
         ${canEdit ? `<td class="td-actions">
@@ -798,6 +804,7 @@ function renderTable(){
               <th class="${sortClass('company')}" data-sort="company">Company${sortArrow('company')}</th>
               <th>Category</th>
               <th class="${sortClass('ticket')}" data-sort="ticket">Ticket${sortArrow('ticket')}</th>
+              <th class="${sortClass('hospitality')}" data-sort="hospitality">Hospitality${sortArrow('hospitality')}</th>
               <th class="${sortClass('status')}" data-sort="status">Status${sortArrow('status')}</th>
               <th>Notes</th>
               ${canEdit ? "<th></th>" : ""}
@@ -1110,10 +1117,11 @@ function closeModal(){ document.getElementById("overlay").classList.remove("open
 function openGuestModal(guestId, prefill){
   if (!hasEditAccess()) { openEditModeModal(true); return; }
   const editing = guestId ? DATA.guests.find(g => g.id === guestId) : null;
-  const base = { race: state.activeRace, name:"", company:"", ticket:"us", status:"invited", notes:"", plusOnes:0, category:"professional", days: DEFAULT_DAYS.slice() };
-  const g = editing || { ...base, ...(prefill||{}) };
+  const base = { race: state.activeRace, name:"", company:"", ticket:"us", hospitality:"notprovided", status:"invited", notes:"", plusOnes:0, category:"professional", days: DEFAULT_DAYS.slice() };
+  const g = editing ? normalizeGuest(editing) : { ...base, ...(prefill||{}) };
   const cat = g.category || "professional";
   const gd = guestDays(g);
+  const hosp = g.hospitality || "notprovided";
 
   document.getElementById("modal-title").textContent = editing ? "Edit guest" : "Add guest";
   document.getElementById("modal-body").innerHTML = `
@@ -1155,14 +1163,22 @@ function openGuestModal(guestId, prefill){
       </div>
       <div class="form-hint">Pick all days the guest is coming. Used for per-day head counts at the top.</div>
     </div>
-    <div class="form-row">
-      <label>Ticket source *</label>
-      <select id="f-ticket">
-        <option value="kessel" ${g.ticket==="kessel"?"selected":""}>Kessel</option>
-        <option value="us" ${g.ticket==="us"?"selected":""}>Us (we provide)</option>
-        <option value="themselves" ${g.ticket==="themselves"?"selected":""}>Themselves (self-paid)</option>
-        <option value="vip" ${g.ticket==="vip"?"selected":""}>VIP Box (loge VIP)</option>
-      </select>
+    <div class="form-row form-row-2">
+      <div>
+        <label>Ticket *</label>
+        <select id="f-ticket">
+          <option value="kessel" ${g.ticket==="kessel"?"selected":""}>Kessel</option>
+          <option value="us" ${g.ticket==="us"?"selected":""}>Us (we provide)</option>
+          <option value="notprovided" ${g.ticket==="notprovided"?"selected":""}>Not provided</option>
+        </select>
+      </div>
+      <div>
+        <label>Hospitality *</label>
+        <select id="f-hospitality">
+          <option value="kessel" ${hosp==="kessel"?"selected":""}>Kessel</option>
+          <option value="notprovided" ${hosp==="notprovided"?"selected":""}>Not provided</option>
+        </select>
+      </div>
     </div>
     <div class="form-row">
       <label>Status *</label>
@@ -1211,6 +1227,7 @@ async function submitGuest(editingId){
     name,
     company: document.getElementById("f-company").value.trim(),
     ticket: document.getElementById("f-ticket").value,
+    hospitality: document.getElementById("f-hospitality").value,
     status: document.getElementById("f-status").value,
     notes: document.getElementById("f-notes").value.trim(),
     plusOnes: Math.max(0, Math.min(20, parseInt(document.getElementById("f-plus").value, 10) || 0)),
@@ -1298,6 +1315,7 @@ function parseBulk(text){
     let plusOnesRaw = (cols[5] || "").trim();
     let category = (cols[6] || "professional").trim().toLowerCase();
     let daysRaw = (cols[7] || "").trim().toLowerCase();
+    let hospitality = (cols[8] || "notprovided").trim().toLowerCase();
     const errors = [];
 
     // Parse trailing "+N" in the name if not given explicitly in col 6
@@ -1310,7 +1328,11 @@ function parseBulk(text){
     }
 
     if (!name) errors.push("missing name");
+    // Legacy ticket inputs: vip → notprovided + hosp=kessel, themselves → notprovided
+    if (ticket === "vip"){ ticket = "notprovided"; if (hospitality === "notprovided") hospitality = "kessel"; }
+    else if (ticket === "themselves"){ ticket = "notprovided"; }
     if (!VALID_TICKETS.includes(ticket)) { errors.push(`invalid ticket "${ticket}"`); ticket = "us"; }
+    if (!VALID_HOSPITALITY.includes(hospitality)) { errors.push(`invalid hospitality "${hospitality}"`); hospitality = "notprovided"; }
     if (!VALID_STATUSES.includes(status)) { errors.push(`invalid status "${status}"`); status = "invited"; }
     if (!VALID_CATEGORIES.includes(category)) { category = "professional"; }
     let days = DEFAULT_DAYS.slice();
@@ -1319,7 +1341,7 @@ function parseBulk(text){
       if (parsed.length) days = [...new Set(parsed)];
       else errors.push(`invalid days "${daysRaw}"`);
     }
-    return { idx: idx+1, name, company, ticket, status, notes, plusOnes, category, days, errors, raw: line };
+    return { idx: idx+1, name, company, ticket, hospitality, status, notes, plusOnes, category, days, errors, raw: line };
   });
 }
 
@@ -1347,10 +1369,10 @@ function openBulkModal(){
   document.getElementById("modal-body").innerHTML = `
     <div id="modal-error" style="display:none"></div>
     <div class="form-info">
-      One guest per line. Format: <code>Name, Company, Ticket, Status, Notes, +N, Category, Days</code><br>
-      Only <strong>Name</strong> is required. Defaults: <code>Ticket</code>=us, <code>Status</code>=invited, <code>Category</code>=professional, <code>Days</code>=sat+sun.<br>
-      Plus-ones: either put <code>+2</code> at the end of the name (e.g. <code>Grant Tromans +2</code>) or in the 6th column.<br>
-      Days: put <code>fri+sat+sun</code> (any combo) in the 8th column. Wrap values containing commas in <code>"double quotes"</code>.
+      One guest per line. Format: <code>Name, Company, Ticket, Status, Notes, +N, Category, Days, Hospitality</code><br>
+      Only <strong>Name</strong> is required. Defaults: <code>Ticket</code>=us, <code>Status</code>=invited, <code>Category</code>=professional, <code>Days</code>=sat+sun, <code>Hospitality</code>=notprovided.<br>
+      Ticket values: <code>kessel</code> · <code>us</code> · <code>notprovided</code>. Hospitality values: <code>kessel</code> · <code>notprovided</code>.<br>
+      Plus-ones: put <code>+2</code> at end of name or in col 6. Days: <code>fri+sat+sun</code> in col 8. Wrap values with commas in <code>"double quotes"</code>.
     </div>
     <div class="form-row">
       <label>Race</label>
@@ -1388,7 +1410,7 @@ John Leroux +1, , us, invited, My brother, , personal'></textarea>
           <span class="bulk-row-idx">${r.idx}</span>
           <div>
             <div class="bulk-row-name">${escapeHtml(r.name)}${r.plusOnes ? ` <span class="plus-badge">+${r.plusOnes}</span>` : ""}${r.company ? ` <span class="bulk-row-meta">· ${escapeHtml(r.company)}</span>` : ""}</div>
-            <div class="bulk-row-meta">${CATEGORY_LABEL[r.category]} · ${TICKET_LABEL[r.ticket]} · ${STATUS_LABEL[r.status]} · ${r.days.map(d=>DAY_LABEL[d].slice(0,3)).join("+")}${r.notes ? ` · ${escapeHtml(r.notes)}` : ""}</div>
+            <div class="bulk-row-meta">${CATEGORY_LABEL[r.category]} · Ticket: ${TICKET_LABEL[r.ticket]} · Hosp: ${HOSPITALITY_LABEL[r.hospitality]} · ${STATUS_LABEL[r.status]} · ${r.days.map(d=>DAY_LABEL[d].slice(0,3)).join("+")}${r.notes ? ` · ${escapeHtml(r.notes)}` : ""}</div>
             ${r.errors.length ? `<div class="bulk-row-err">${r.errors.join(", ")} — row still imported with defaults</div>` : ""}
           </div>
           <span></span>
@@ -1411,7 +1433,7 @@ async function submitBulk(){
   const btn = document.getElementById("btn-save");
   btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:12px;height:12px"></span> Saving…';
 
-  const toInsert = rows.map(r => ({ id: genId(), race: raceId, name: r.name, company: r.company, ticket: r.ticket, status: r.status, notes: r.notes, plusOnes: r.plusOnes, category: r.category, days: r.days }));
+  const toInsert = rows.map(r => ({ id: genId(), race: raceId, name: r.name, company: r.company, ticket: r.ticket, hospitality: r.hospitality, status: r.status, notes: r.notes, plusOnes: r.plusOnes, category: r.category, days: r.days }));
 
   try {
     await bulkAddGuests(toInsert);
@@ -1434,10 +1456,10 @@ function csvEscape(v){
 }
 function exportCsv(scope){
   const scopeGuests = scope === "current" ? guestsForRace(state.activeRace) : DATA.guests;
-  const headers = ["Race","Name","Plus-ones","Company","Category","Ticket","Status","Days","Notes","Added by"];
+  const headers = ["Race","Name","Plus-ones","Company","Category","Ticket","Hospitality","Status","Days","Notes","Added by"];
   const rows = scopeGuests.map(g => {
     const r = DATA.races.find(x => x.id === g.race);
-    return [r ? r.short : g.race, g.name, Number(g.plusOnes)||0, g.company||"", CATEGORY_LABEL[g.category||"professional"], TICKET_LABEL[g.ticket]||g.ticket||"", STATUS_LABEL[g.status]||g.status||"", guestDays(g).map(d=>DAY_LABEL[d]).join("+"), g.notes||"", g.updatedBy||""];
+    return [r ? r.short : g.race, g.name, Number(g.plusOnes)||0, g.company||"", CATEGORY_LABEL[g.category||"professional"], TICKET_LABEL[g.ticket]||"Not provided", HOSPITALITY_LABEL[g.hospitality||"notprovided"], STATUS_LABEL[g.status]||g.status||"", guestDays(g).map(d=>DAY_LABEL[d]).join("+"), g.notes||"", g.updatedBy||""];
   });
   const csv = "﻿" + [headers, ...rows].map(r => r.map(csvEscape).join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -1520,6 +1542,7 @@ function onFilterChange(){ renderHeaderStats(); renderTable(); }
 document.getElementById("search").addEventListener("input", e => { state.search = e.target.value; onFilterChange(); });
 document.getElementById("filter-status").addEventListener("change", e => { state.status = e.target.value; onFilterChange(); });
 document.getElementById("filter-ticket").addEventListener("change", e => { state.ticket = e.target.value; onFilterChange(); });
+document.getElementById("filter-hospitality").addEventListener("change", e => { state.hospitality = e.target.value; onFilterChange(); });
 document.getElementById("filter-company").addEventListener("change", e => { state.company = e.target.value; onFilterChange(); });
 document.getElementById("filter-category").addEventListener("change", e => { state.category = e.target.value; onFilterChange(); });
 document.getElementById("filter-day").addEventListener("change", e => { state.day = e.target.value; onFilterChange(); });
