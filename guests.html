@@ -94,6 +94,14 @@ tbody tr.flash{animation:flash 1.5s ease-out}
 
 .plus-badge{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700;background:rgba(249,115,22,.18);color:#fb923c;border:1px solid rgba(249,115,22,.35);letter-spacing:.3px}
 
+.day-chips{display:inline-flex;gap:3px;margin-left:6px;vertical-align:1px}
+.day-chip{display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;letter-spacing:.5px;background:rgba(255,255,255,.05);color:var(--dim2);border:1px solid var(--border2)}
+.day-chip.on{background:rgba(59,130,246,.18);color:#93c5fd;border-color:rgba(59,130,246,.4)}
+.day-chip.fri.on{background:rgba(168,85,247,.18);color:#c084fc;border-color:rgba(168,85,247,.4)}
+.day-chip.sat.on{background:rgba(6,182,212,.18);color:#67e8f9;border-color:rgba(6,182,212,.4)}
+.day-chip.sun.on{background:rgba(249,115,22,.18);color:#fdba74;border-color:rgba(249,115,22,.4)}
+.stat-num.fri{color:#c084fc}.stat-num.sat{color:#67e8f9}.stat-num.sun{color:#fdba74}
+
 .seg{display:flex;gap:8px;flex-wrap:wrap}
 .seg-opt{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid var(--border2);border-radius:8px;cursor:pointer;font-size:13px;background:var(--bg);transition:.15s}
 .seg-opt:has(input:checked){border-color:var(--accent);background:rgba(220,38,38,.08);color:var(--text)}
@@ -300,6 +308,12 @@ footer a:hover{text-decoration:underline}
     <option value="professional">Professional</option>
     <option value="personal">Personal</option>
   </select>
+  <select id="filter-day" title="Filter guests by the day they're attending">
+    <option value="">All days</option>
+    <option value="fri">Friday only</option>
+    <option value="sat">Saturday only</option>
+    <option value="sun">Sunday only</option>
+  </select>
   <button class="btn-icon" id="btn-group-company" title="Toggle grouping by company">🏢 Group by company</button>
   <div class="controls-spacer"></div>
   <div class="dropdown" id="export-dropdown">
@@ -412,9 +426,17 @@ const ATT_LABEL = { pdf:"PDF", image:"Image", doc:"Doc", sheet:"Sheet", link:"Li
 let lastUpdate = null;
 let flashId = null;
 let initialLoadDone = false;
-const state = { activeRace: null, search: "", status: "", ticket: "", company: "", category: "", groupByCompany: false, sortBy: "name", sortDir: "asc" };
+const state = { activeRace: null, search: "", status: "", ticket: "", company: "", category: "", day: "", groupByCompany: false, sortBy: "name", sortDir: "asc" };
 const VALID_CATEGORIES = ["personal","professional"];
 const CATEGORY_LABEL = { personal:"Personal", professional:"Professional" };
+const VALID_DAYS = ["fri","sat","sun"];
+const DAY_LABEL = { fri:"Friday", sat:"Saturday", sun:"Sunday" };
+const DAY_SHORT = { fri:"F", sat:"S", sun:"U" };
+const DEFAULT_DAYS = ["sat","sun"];
+function guestDays(g){
+  if (Array.isArray(g.days) && g.days.length) return g.days.filter(d => VALID_DAYS.includes(d));
+  return DEFAULT_DAYS.slice();
+}
 
 // ============================================================
 // Password / author
@@ -599,6 +621,7 @@ function filteredGuests(raceId){
     if (state.ticket && g.ticket !== state.ticket) return false;
     if (state.company && (g.company||"") !== state.company) return false;
     if (state.category && (g.category||"professional") !== state.category) return false;
+    if (state.day && !guestDays(g).includes(state.day)) return false;
     if (q){
       const hay = `${g.name||""} ${g.company||""} ${g.notes||""}`.toLowerCase();
       if (!hay.includes(q)) return false;
@@ -606,6 +629,16 @@ function filteredGuests(raceId){
     return true;
   });
   return sortGuests(base);
+}
+
+function headsByDay(guests){
+  const out = { fri: 0, sat: 0, sun: 0, total: 0 };
+  guests.forEach(g => {
+    const n = 1 + (Number(g.plusOnes)||0);
+    out.total += n;
+    guestDays(g).forEach(d => { if (out[d] != null) out[d] += n; });
+  });
+  return out;
 }
 
 function renderCompanyFilter(){
@@ -625,20 +658,18 @@ function totalHeads(guests){
 // Rendering
 // ============================================================
 function renderHeaderStats(){
-  const total = DATA.guests.length;
-  const heads = totalHeads(DATA.guests);
-  const confirmed = DATA.guests.filter(g => g.status === "confirmed").length;
-  const pending = DATA.guests.filter(g => g.status === "invited" || g.status === "noreply").length;
-  const declined = DATA.guests.filter(g => g.status === "declined").length;
-  const races = new Set(DATA.guests.map(g => g.race)).size;
+  const r = DATA.races.find(x => x.id === state.activeRace);
+  const scoped = r ? filteredGuests(r.id) : [];
+  const h = headsByDay(scoped);
+  const scope = r ? r.short : "—";
+  const anyFilter = !!(state.status || state.ticket || state.company || state.category || state.day || state.search.trim());
+  const filterHint = anyFilter ? `<span style="color:var(--dim2);font-size:10px;margin-left:6px">(filtered)</span>` : "";
 
   document.getElementById("header-stats").innerHTML = `
-    <div class="stat"><div class="stat-num">${total}</div><div class="stat-label">Season guests</div></div>
-    <div class="stat"><div class="stat-num">${heads}</div><div class="stat-label">Total heads (+1s)</div></div>
-    <div class="stat"><div class="stat-num green">${confirmed}</div><div class="stat-label">Confirmed</div></div>
-    <div class="stat"><div class="stat-num yellow">${pending}</div><div class="stat-label">Pending</div></div>
-    <div class="stat"><div class="stat-num red">${declined}</div><div class="stat-label">Declined</div></div>
-    <div class="stat"><div class="stat-num blue">${races}/${DATA.races.length}</div><div class="stat-label">Active races</div></div>
+    <div class="stat"><div class="stat-num orange">${h.total}</div><div class="stat-label">Total heads · ${escapeHtml(scope)}${filterHint}</div></div>
+    <div class="stat"><div class="stat-num fri">${h.fri}</div><div class="stat-label">Friday</div></div>
+    <div class="stat"><div class="stat-num sat">${h.sat}</div><div class="stat-label">Saturday</div></div>
+    <div class="stat"><div class="stat-num sun">${h.sun}</div><div class="stat-label">Sunday</div></div>
   `;
 }
 
@@ -737,10 +768,12 @@ function renderTable(){
     const flashCls = g.id === flashId ? " flash" : "";
     const plus = Number(g.plusOnes)||0;
     const plusBadge = plus > 0 ? ` <span class="plus-badge" title="${plus} plus-one${plus!==1?"s":""}">+${plus}</span>` : "";
+    const gd = guestDays(g);
+    const dayChips = `<span class="day-chips" title="Attending: ${gd.map(d=>DAY_LABEL[d]).join(", ")||"—"}">${VALID_DAYS.map(d => `<span class="day-chip ${d} ${gd.includes(d)?"on":""}">${DAY_SHORT[d]}</span>`).join("")}</span>`;
     const authorLine = g.updatedBy ? `<div class="td-author">by ${escapeHtml(g.updatedBy)}${g.updatedAt ? ` · ${relTime(g.updatedAt)}` : ""}</div>` : "";
     return `
       <tr class="row${flashCls}" data-row="${g.id}">
-        <td><div class="td-name">${escapeHtml(g.name)}${plusBadge}</div>${authorLine}</td>
+        <td><div class="td-name">${escapeHtml(g.name)}${plusBadge}${dayChips}</div>${authorLine}</td>
         <td>${g.company ? escapeHtml(g.company) : '<span style="color:var(--dim)">—</span>'}</td>
         <td><span class="tag category-${g.category||"professional"}">${catLabel}</span></td>
         <td>${g.ticket ? `<span class="tag ticket-${g.ticket}">${ticketLabel}</span>` : "—"}</td>
@@ -1077,9 +1110,10 @@ function closeModal(){ document.getElementById("overlay").classList.remove("open
 function openGuestModal(guestId, prefill){
   if (!hasEditAccess()) { openEditModeModal(true); return; }
   const editing = guestId ? DATA.guests.find(g => g.id === guestId) : null;
-  const base = { race: state.activeRace, name:"", company:"", ticket:"us", status:"invited", notes:"", plusOnes:0, category:"professional" };
+  const base = { race: state.activeRace, name:"", company:"", ticket:"us", status:"invited", notes:"", plusOnes:0, category:"professional", days: DEFAULT_DAYS.slice() };
   const g = editing || { ...base, ...(prefill||{}) };
   const cat = g.category || "professional";
+  const gd = guestDays(g);
 
   document.getElementById("modal-title").textContent = editing ? "Edit guest" : "Add guest";
   document.getElementById("modal-body").innerHTML = `
@@ -1111,6 +1145,15 @@ function openGuestModal(guestId, prefill){
         <label class="seg-opt"><input type="radio" name="f-category" value="professional" ${cat==="professional"?"checked":""}> 💼 Professional</label>
         <label class="seg-opt"><input type="radio" name="f-category" value="personal" ${cat==="personal"?"checked":""}> 👤 Personal</label>
       </div>
+    </div>
+    <div class="form-row">
+      <label>Days attending *</label>
+      <div class="seg">
+        <label class="seg-opt"><input type="checkbox" name="f-day" value="fri" ${gd.includes("fri")?"checked":""}> 📅 Friday</label>
+        <label class="seg-opt"><input type="checkbox" name="f-day" value="sat" ${gd.includes("sat")?"checked":""}> 📅 Saturday</label>
+        <label class="seg-opt"><input type="checkbox" name="f-day" value="sun" ${gd.includes("sun")?"checked":""}> 📅 Sunday</label>
+      </div>
+      <div class="form-hint">Pick all days the guest is coming. Used for per-day head counts at the top.</div>
     </div>
     <div class="form-row">
       <label>Ticket source *</label>
@@ -1160,6 +1203,8 @@ async function submitGuest(editingId){
   if (!name) { showModalError("Name is required."); return; }
 
   const catInput = document.querySelector('input[name="f-category"]:checked');
+  const dayInputs = Array.from(document.querySelectorAll('input[name="f-day"]:checked')).map(i => i.value).filter(d => VALID_DAYS.includes(d));
+  if (dayInputs.length === 0) { showModalError("Pick at least one day the guest is attending."); return; }
   const draft = {
     id: editingId || genId(),
     race: document.getElementById("f-race").value,
@@ -1169,7 +1214,8 @@ async function submitGuest(editingId){
     status: document.getElementById("f-status").value,
     notes: document.getElementById("f-notes").value.trim(),
     plusOnes: Math.max(0, Math.min(20, parseInt(document.getElementById("f-plus").value, 10) || 0)),
-    category: catInput ? catInput.value : "professional"
+    category: catInput ? catInput.value : "professional",
+    days: dayInputs
   };
   const cloneRace = editingId ? (document.getElementById("f-clone")?.value || "") : "";
 
@@ -1251,6 +1297,7 @@ function parseBulk(text){
     const notes = (cols[4] || "").trim();
     let plusOnesRaw = (cols[5] || "").trim();
     let category = (cols[6] || "professional").trim().toLowerCase();
+    let daysRaw = (cols[7] || "").trim().toLowerCase();
     const errors = [];
 
     // Parse trailing "+N" in the name if not given explicitly in col 6
@@ -1266,7 +1313,13 @@ function parseBulk(text){
     if (!VALID_TICKETS.includes(ticket)) { errors.push(`invalid ticket "${ticket}"`); ticket = "us"; }
     if (!VALID_STATUSES.includes(status)) { errors.push(`invalid status "${status}"`); status = "invited"; }
     if (!VALID_CATEGORIES.includes(category)) { category = "professional"; }
-    return { idx: idx+1, name, company, ticket, status, notes, plusOnes, category, errors, raw: line };
+    let days = DEFAULT_DAYS.slice();
+    if (daysRaw){
+      const parsed = daysRaw.split(/[+\s|/]+/).map(d => d.trim().slice(0,3)).filter(d => VALID_DAYS.includes(d));
+      if (parsed.length) days = [...new Set(parsed)];
+      else errors.push(`invalid days "${daysRaw}"`);
+    }
+    return { idx: idx+1, name, company, ticket, status, notes, plusOnes, category, days, errors, raw: line };
   });
 }
 
@@ -1294,10 +1347,10 @@ function openBulkModal(){
   document.getElementById("modal-body").innerHTML = `
     <div id="modal-error" style="display:none"></div>
     <div class="form-info">
-      One guest per line. Format: <code>Name, Company, Ticket, Status, Notes, +N, Category</code><br>
-      Only <strong>Name</strong> is required. <code>Ticket</code>=us, <code>Status</code>=invited, <code>Category</code>=professional by default.<br>
+      One guest per line. Format: <code>Name, Company, Ticket, Status, Notes, +N, Category, Days</code><br>
+      Only <strong>Name</strong> is required. Defaults: <code>Ticket</code>=us, <code>Status</code>=invited, <code>Category</code>=professional, <code>Days</code>=sat+sun.<br>
       Plus-ones: either put <code>+2</code> at the end of the name (e.g. <code>Grant Tromans +2</code>) or in the 6th column.<br>
-      Wrap values containing commas in <code>"double quotes"</code>.
+      Days: put <code>fri+sat+sun</code> (any combo) in the 8th column. Wrap values containing commas in <code>"double quotes"</code>.
     </div>
     <div class="form-row">
       <label>Race</label>
@@ -1335,7 +1388,7 @@ John Leroux +1, , us, invited, My brother, , personal'></textarea>
           <span class="bulk-row-idx">${r.idx}</span>
           <div>
             <div class="bulk-row-name">${escapeHtml(r.name)}${r.plusOnes ? ` <span class="plus-badge">+${r.plusOnes}</span>` : ""}${r.company ? ` <span class="bulk-row-meta">· ${escapeHtml(r.company)}</span>` : ""}</div>
-            <div class="bulk-row-meta">${CATEGORY_LABEL[r.category]} · ${TICKET_LABEL[r.ticket]} · ${STATUS_LABEL[r.status]}${r.notes ? ` · ${escapeHtml(r.notes)}` : ""}</div>
+            <div class="bulk-row-meta">${CATEGORY_LABEL[r.category]} · ${TICKET_LABEL[r.ticket]} · ${STATUS_LABEL[r.status]} · ${r.days.map(d=>DAY_LABEL[d].slice(0,3)).join("+")}${r.notes ? ` · ${escapeHtml(r.notes)}` : ""}</div>
             ${r.errors.length ? `<div class="bulk-row-err">${r.errors.join(", ")} — row still imported with defaults</div>` : ""}
           </div>
           <span></span>
@@ -1358,7 +1411,7 @@ async function submitBulk(){
   const btn = document.getElementById("btn-save");
   btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:12px;height:12px"></span> Saving…';
 
-  const toInsert = rows.map(r => ({ id: genId(), race: raceId, name: r.name, company: r.company, ticket: r.ticket, status: r.status, notes: r.notes, plusOnes: r.plusOnes, category: r.category }));
+  const toInsert = rows.map(r => ({ id: genId(), race: raceId, name: r.name, company: r.company, ticket: r.ticket, status: r.status, notes: r.notes, plusOnes: r.plusOnes, category: r.category, days: r.days }));
 
   try {
     await bulkAddGuests(toInsert);
@@ -1381,10 +1434,10 @@ function csvEscape(v){
 }
 function exportCsv(scope){
   const scopeGuests = scope === "current" ? guestsForRace(state.activeRace) : DATA.guests;
-  const headers = ["Race","Name","Plus-ones","Company","Category","Ticket","Status","Notes","Added by"];
+  const headers = ["Race","Name","Plus-ones","Company","Category","Ticket","Status","Days","Notes","Added by"];
   const rows = scopeGuests.map(g => {
     const r = DATA.races.find(x => x.id === g.race);
-    return [r ? r.short : g.race, g.name, Number(g.plusOnes)||0, g.company||"", CATEGORY_LABEL[g.category||"professional"], TICKET_LABEL[g.ticket]||g.ticket||"", STATUS_LABEL[g.status]||g.status||"", g.notes||"", g.updatedBy||""];
+    return [r ? r.short : g.race, g.name, Number(g.plusOnes)||0, g.company||"", CATEGORY_LABEL[g.category||"professional"], TICKET_LABEL[g.ticket]||g.ticket||"", STATUS_LABEL[g.status]||g.status||"", guestDays(g).map(d=>DAY_LABEL[d]).join("+"), g.notes||"", g.updatedBy||""];
   });
   const csv = "﻿" + [headers, ...rows].map(r => r.map(csvEscape).join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
@@ -1463,11 +1516,13 @@ function toast(kind, msg){
 // ============================================================
 // Events
 // ============================================================
-document.getElementById("search").addEventListener("input", e => { state.search = e.target.value; renderTable(); });
-document.getElementById("filter-status").addEventListener("change", e => { state.status = e.target.value; renderTable(); });
-document.getElementById("filter-ticket").addEventListener("change", e => { state.ticket = e.target.value; renderTable(); });
-document.getElementById("filter-company").addEventListener("change", e => { state.company = e.target.value; renderTable(); });
-document.getElementById("filter-category").addEventListener("change", e => { state.category = e.target.value; renderTable(); });
+function onFilterChange(){ renderHeaderStats(); renderTable(); }
+document.getElementById("search").addEventListener("input", e => { state.search = e.target.value; onFilterChange(); });
+document.getElementById("filter-status").addEventListener("change", e => { state.status = e.target.value; onFilterChange(); });
+document.getElementById("filter-ticket").addEventListener("change", e => { state.ticket = e.target.value; onFilterChange(); });
+document.getElementById("filter-company").addEventListener("change", e => { state.company = e.target.value; onFilterChange(); });
+document.getElementById("filter-category").addEventListener("change", e => { state.category = e.target.value; onFilterChange(); });
+document.getElementById("filter-day").addEventListener("change", e => { state.day = e.target.value; onFilterChange(); });
 document.getElementById("btn-group-company").addEventListener("click", () => {
   state.groupByCompany = !state.groupByCompany;
   document.getElementById("btn-group-company").classList.toggle("active", state.groupByCompany);
