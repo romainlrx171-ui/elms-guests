@@ -112,6 +112,39 @@ tbody tr.flash{animation:flash 1.5s ease-out}
 .company-add{flex-shrink:0}
 .company-group .table-wrap{border:0;border-radius:0}
 
+.details-card{margin:16px 28px 0;background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.details-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:linear-gradient(135deg,rgba(220,38,38,.04),rgba(59,130,246,.03));border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px}
+.details-title{font-size:14px;font-weight:700;color:var(--text);letter-spacing:.2px}
+.details-head-actions{display:flex;gap:8px}
+.details-section{padding:16px 18px;border-bottom:1px solid var(--border)}
+.details-section:last-child{border-bottom:0}
+.details-section-title{font-size:11px;font-weight:700;color:var(--dim2);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+.details-desc{width:100%;min-height:90px;padding:12px 14px;background:var(--bg);border:1px solid var(--border2);border-radius:6px;color:var(--text);font:13px/1.6 'Inter',-apple-system,sans-serif;resize:vertical}
+.details-desc:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 1px rgba(220,38,38,.3)}
+.details-desc-ro{white-space:pre-wrap;font-family:'Inter',-apple-system,sans-serif;font-size:13px;line-height:1.7;color:var(--text);background:var(--bg);padding:12px 14px;border-radius:6px;border:1px solid var(--border)}
+.details-desc-actions{display:flex;align-items:center;gap:12px;margin-top:8px}
+.btn-sm{padding:5px 12px;font-size:12px}
+.details-meta{font-size:11px;color:var(--dim2)}
+
+.att-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.att-card{display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;transition:.15s;position:relative}
+.att-card:hover{border-color:var(--dim2)}
+.att-icon{width:42px;height:42px;display:flex;align-items:center;justify-content:center;background:var(--card2);border-radius:6px;font-size:20px;flex-shrink:0}
+.att-thumb{width:42px;height:42px;object-fit:cover;border-radius:6px;flex-shrink:0;background:var(--card2)}
+.att-body{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.att-label{color:var(--text);font-size:13px;font-weight:600;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.att-label:hover{color:var(--accent2);text-decoration:underline}
+.att-meta{font-size:11px;color:var(--dim2);display:flex;gap:8px;flex-wrap:wrap}
+.att-kind{text-transform:uppercase;font-weight:700;letter-spacing:.5px;color:var(--dim)}
+.att-author{color:var(--dim2)}
+.att-actions{display:flex;gap:6px;flex-shrink:0}
+.att-empty{padding:14px;color:var(--dim);font-size:13px;text-align:center;background:var(--bg);border:1px dashed var(--border2);border-radius:6px}
+
+@media print{
+  .details-head-actions,.att-actions,.details-desc-actions{display:none !important}
+  .details-desc{border:0;background:transparent;padding:0;min-height:auto}
+}
+
 .status{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:700;white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
 .status::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
 .status-confirmed{background:rgba(34,197,94,.15);color:#4ade80}
@@ -241,6 +274,7 @@ footer a:hover{text-decoration:underline}
 
 <div class="race-tabs" id="race-tabs"></div>
 <div class="race-header" id="race-header"></div>
+<div id="race-details"></div>
 
 <div class="controls">
   <input type="text" id="search" placeholder="🔎 Search name, company, notes…  ( / )" />
@@ -371,7 +405,10 @@ function initFirebase(){
 // ============================================================
 // State
 // ============================================================
-let DATA = { season: "", team: "", driver: "", races: [], guests: [] };
+let DATA = { season: "", team: "", driver: "", races: [], guests: [], attachments: [] };
+const VALID_ATT_KINDS = ["pdf","image","doc","sheet","link","other"];
+const ATT_ICON = { pdf:"📄", image:"🖼", doc:"📝", sheet:"📊", link:"🔗", other:"📎" };
+const ATT_LABEL = { pdf:"PDF", image:"Image", doc:"Doc", sheet:"Sheet", link:"Link", other:"Other" };
 let lastUpdate = null;
 let flashId = null;
 let initialLoadDone = false;
@@ -431,6 +468,13 @@ function attachListeners(){
     if (initialLoadDone) renderAll();
   }, err => { setSync("err", "Races error"); });
 
+  // Race attachments
+  db.collection("raceAttachments").onSnapshot(snap => {
+    DATA.attachments = [];
+    snap.forEach(d => DATA.attachments.push(d.data()));
+    if (initialLoadDone) renderAll();
+  }, err => { setSync("err", "Attachments error"); console.error(err); });
+
   // Guests
   db.collection("guests").onSnapshot(snap => {
     DATA.guests = [];
@@ -462,6 +506,17 @@ async function upsertGuest(g){
 }
 async function deleteGuestDoc(id){
   await db.collection("guests").doc(id).delete();
+}
+async function upsertAttachment(a){
+  a.updatedAt = Date.now();
+  a.updatedBy = getAuthor() || "anonymous";
+  await db.collection("raceAttachments").doc(a.id).set(a);
+}
+async function deleteAttachmentDoc(id){
+  await db.collection("raceAttachments").doc(id).delete();
+}
+async function saveRaceDescription(raceId, description){
+  await db.collection("races").doc(raceId).set({ description, descriptionUpdatedAt: Date.now(), descriptionUpdatedBy: getAuthor() || "anonymous" }, { merge: true });
 }
 async function bulkAddGuests(arr){
   // Firestore batch limit: 500 writes. Our lists are small, single batch is fine.
@@ -787,10 +842,230 @@ function renderAll(){
   renderHeaderStats();
   renderRaceTabs();
   renderRaceHeader();
+  renderRaceDetails();
   renderCompanyFilter();
   renderTable();
   updateReadonlyBanner();
   renderFooterMeta();
+}
+
+function attachmentsForRace(raceId){
+  return DATA.attachments.filter(a => a.race === raceId).sort((a,b) => (b.updatedAt||0) - (a.updatedAt||0));
+}
+
+function renderRaceDetails(){
+  const el = document.getElementById("race-details");
+  const r = DATA.races.find(x => x.id === state.activeRace);
+  if (!r){ el.innerHTML = ""; return; }
+  const canEdit = hasEditAccess();
+  const attachments = attachmentsForRace(r.id);
+
+  // Preserve in-progress description edits across snapshot re-renders
+  const active = document.activeElement;
+  const preservedDesc = (active && active.id === "desc-input")
+    ? { value: active.value, start: active.selectionStart, end: active.selectionEnd }
+    : null;
+
+  const desc = r.description || "";
+  const descMeta = r.descriptionUpdatedBy ? `<div class="details-meta">Last note by ${escapeHtml(r.descriptionUpdatedBy)}${r.descriptionUpdatedAt ? ` · ${relTime(r.descriptionUpdatedAt)}` : ""}</div>` : "";
+
+  const attachmentsHtml = attachments.length === 0
+    ? `<div class="att-empty">${canEdit ? "No links yet. Add a Google Drive PDF, a Dropbox photo folder, a Notion page, anything." : "No links yet."}</div>`
+    : attachments.map(a => {
+        const icon = ATT_ICON[a.kind] || ATT_ICON.other;
+        const isImg = a.kind === "image" && /^https?:\/\/.*\.(jpg|jpeg|png|gif|webp|avif)(\?.*)?$/i.test(a.url);
+        const authorLine = a.updatedBy ? `<span class="att-author">by ${escapeHtml(a.updatedBy)}${a.updatedAt ? ` · ${relTime(a.updatedAt)}` : ""}</span>` : "";
+        return `
+          <div class="att-card" data-att="${a.id}">
+            ${isImg ? `<img class="att-thumb" src="${escapeHtml(a.url)}" loading="lazy" alt="">` : `<div class="att-icon">${icon}</div>`}
+            <div class="att-body">
+              <a class="att-label" href="${escapeHtml(a.url)}" target="_blank" rel="noopener">${escapeHtml(a.label || a.url)}</a>
+              <div class="att-meta"><span class="att-kind">${ATT_LABEL[a.kind]||"Link"}</span> ${authorLine}</div>
+            </div>
+            ${canEdit ? `<div class="att-actions">
+              <button class="row-action" data-att-edit="${a.id}">Edit</button>
+              <button class="row-action danger" data-att-delete="${a.id}">Delete</button>
+            </div>` : ""}
+          </div>
+        `;
+      }).join("");
+
+  el.innerHTML = `
+    <div class="details-card">
+      <div class="details-head">
+        <div class="details-title">📋 Event details · <span style="color:var(--dim2);font-weight:500">${escapeHtml(r.short)}</span></div>
+        ${canEdit ? `<div class="details-head-actions">
+          <button class="btn-icon" id="btn-add-att">＋ Add link / doc</button>
+        </div>` : ""}
+      </div>
+
+      <div class="details-section">
+        <div class="details-section-title">📝 Notes — catering, logistics, hotel, briefings, whatever</div>
+        ${canEdit
+          ? `<textarea class="details-desc" id="desc-input" placeholder="Catering: Maison Richard – 25 lunch boxes (confirmed).\nLoge VIP: keys at reception 9am.\nTransfer: 2 shuttles from Marseille airport at 11h30...">${escapeHtml(desc)}</textarea>
+             <div class="details-desc-actions">
+               <button class="btn-secondary btn-sm" id="btn-desc-save">💾 Save notes</button>
+               <span id="desc-status" class="details-meta"></span>
+             </div>
+             ${descMeta}`
+          : (desc ? `<pre class="details-desc-ro">${escapeHtml(desc)}</pre>${descMeta}` : `<div class="att-empty">No notes yet.</div>`)
+        }
+      </div>
+
+      <div class="details-section">
+        <div class="details-section-title">📎 Links & documents (${attachments.length})</div>
+        <div class="att-grid">${attachmentsHtml}</div>
+      </div>
+    </div>
+  `;
+
+  if (canEdit){
+    const btnAdd = document.getElementById("btn-add-att");
+    if (btnAdd) btnAdd.addEventListener("click", () => openAttachmentModal(null));
+    el.querySelectorAll("[data-att-edit]").forEach(b => b.addEventListener("click", () => openAttachmentModal(b.dataset.attEdit)));
+    el.querySelectorAll("[data-att-delete]").forEach(b => b.addEventListener("click", () => confirmDeleteAttachment(b.dataset.attDelete)));
+
+    const saveBtn = document.getElementById("btn-desc-save");
+    const input = document.getElementById("desc-input");
+    const status = document.getElementById("desc-status");
+    if (saveBtn && input){
+      saveBtn.addEventListener("click", async () => {
+        saveBtn.disabled = true; saveBtn.textContent = "Saving…";
+        try {
+          await saveRaceDescription(r.id, input.value);
+          status.textContent = "✓ Saved";
+          setTimeout(() => { if (status) status.textContent = ""; }, 2000);
+        } catch (e){
+          status.textContent = "✗ " + (e.message || "Save failed");
+        } finally {
+          saveBtn.disabled = false; saveBtn.textContent = "💾 Save notes";
+        }
+      });
+      input.addEventListener("keydown", e => {
+        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") saveBtn.click();
+      });
+    }
+
+    // Restore in-progress edit if snapshot re-rendered us mid-typing
+    if (preservedDesc){
+      const restored = document.getElementById("desc-input");
+      if (restored){
+        restored.value = preservedDesc.value;
+        restored.focus();
+        try { restored.setSelectionRange(preservedDesc.start, preservedDesc.end); } catch(_) {}
+      }
+    }
+  }
+}
+
+function openAttachmentModal(attId){
+  if (!hasEditAccess()) { openEditModeModal(true); return; }
+  const editing = attId ? DATA.attachments.find(a => a.id === attId) : null;
+  const a = editing || { race: state.activeRace, label: "", url: "", kind: "link" };
+
+  document.getElementById("modal-title").textContent = editing ? "Edit link" : "Add link / document";
+  document.getElementById("modal-body").innerHTML = `
+    <div id="modal-error" style="display:none"></div>
+    <div class="form-info">
+      Paste a URL to any file — Google Drive, Dropbox, OneDrive, Notion, a plain image URL, or any webpage.
+      The file stays wherever you host it; we just store the link.
+    </div>
+    <div class="form-row">
+      <label>Race</label>
+      <select id="f-att-race">
+        ${DATA.races.map(r => `<option value="${r.id}" ${r.id===a.race?"selected":""}>${r.flag} ${r.short} — ${fmtDate(r.date)}</option>`).join("")}
+      </select>
+    </div>
+    <div class="form-row">
+      <label>Label *</label>
+      <input type="text" id="f-att-label" value="${escapeHtml(a.label||"")}" placeholder="e.g. Catering contract — Maison Richard" />
+    </div>
+    <div class="form-row">
+      <label>URL *</label>
+      <input type="url" id="f-att-url" value="${escapeHtml(a.url||"")}" placeholder="https://drive.google.com/..." />
+    </div>
+    <div class="form-row">
+      <label>Kind</label>
+      <select id="f-att-kind">
+        ${VALID_ATT_KINDS.map(k => `<option value="${k}" ${a.kind===k?"selected":""}>${ATT_ICON[k]} ${ATT_LABEL[k]}</option>`).join("")}
+      </select>
+      <div class="form-hint">For direct image URLs (ending in .jpg/.png/...), "Image" shows a live thumbnail.</div>
+    </div>
+  `;
+  document.getElementById("modal-footer").innerHTML = `
+    <button class="btn-secondary" id="btn-cancel">Cancel</button>
+    <button class="btn-primary" id="btn-save">${editing ? "Save changes" : "Add link"}</button>
+  `;
+  document.getElementById("btn-cancel").onclick = closeModal;
+  document.getElementById("btn-save").onclick = () => submitAttachment(editing?.id || null);
+
+  // Auto-detect kind from URL pattern
+  const urlIn = document.getElementById("f-att-url");
+  const kindIn = document.getElementById("f-att-kind");
+  urlIn.addEventListener("input", () => {
+    const u = urlIn.value.toLowerCase();
+    if (!u) return;
+    let guess = kindIn.value;
+    if (/\.pdf(\?|$)/.test(u)) guess = "pdf";
+    else if (/\.(jpg|jpeg|png|gif|webp|avif)(\?|$)/.test(u)) guess = "image";
+    else if (/docs\.google\.com\/document|\.docx?(\?|$)/.test(u)) guess = "doc";
+    else if (/docs\.google\.com\/spreadsheets|\.xlsx?(\?|$)|\.csv(\?|$)/.test(u)) guess = "sheet";
+    else if (/drive\.google\.com|dropbox\.com|onedrive/.test(u)) guess = kindIn.value === "link" ? "pdf" : kindIn.value;
+    kindIn.value = guess;
+  });
+
+  openModal(false);
+  setTimeout(() => document.getElementById("f-att-label").focus(), 100);
+}
+
+async function submitAttachment(editingId){
+  const label = document.getElementById("f-att-label").value.trim();
+  const url = document.getElementById("f-att-url").value.trim();
+  const race = document.getElementById("f-att-race").value;
+  const kind = document.getElementById("f-att-kind").value;
+  if (!label) { showModalError("Label is required."); return; }
+  if (!url) { showModalError("URL is required."); return; }
+  try { new URL(url); } catch { showModalError("That doesn't look like a valid URL (must start with http:// or https://)."); return; }
+
+  const draft = { id: editingId || genId(), race, label, url, kind };
+  const btn = document.getElementById("btn-save");
+  btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:12px;height:12px"></span> Saving…';
+  try {
+    await upsertAttachment(draft);
+    closeModal();
+    toast("success", editingId ? `Updated "${label}"` : `Added "${label}"`);
+  } catch (e){
+    showModalError(e.message || "Save failed");
+    btn.disabled = false; btn.textContent = editingId ? "Save changes" : "Add link";
+  }
+}
+
+function confirmDeleteAttachment(attId){
+  const a = DATA.attachments.find(x => x.id === attId);
+  if (!a) return;
+  document.getElementById("modal-title").textContent = "Delete link?";
+  document.getElementById("modal-body").innerHTML = `
+    <div id="modal-error" style="display:none"></div>
+    <p style="font-size:14px;line-height:1.6;color:var(--text)">Remove <strong>${escapeHtml(a.label)}</strong> from this race? The original file stays on ${escapeHtml(new URL(a.url).hostname)} — only the reference here is deleted.</p>
+  `;
+  document.getElementById("modal-footer").innerHTML = `
+    <button class="btn-secondary" id="btn-cancel">Cancel</button>
+    <button class="btn-danger" id="btn-confirm">Delete</button>
+  `;
+  document.getElementById("btn-cancel").onclick = closeModal;
+  document.getElementById("btn-confirm").onclick = async () => {
+    const btn = document.getElementById("btn-confirm");
+    btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:12px;height:12px"></span> Deleting…';
+    try {
+      await deleteAttachmentDoc(attId);
+      closeModal();
+      toast("success", `Removed "${a.label}"`);
+    } catch (e){
+      showModalError(e.message || "Delete failed");
+      btn.disabled = false; btn.textContent = "Delete";
+    }
+  };
+  openModal(false);
 }
 
 // ============================================================
