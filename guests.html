@@ -89,7 +89,9 @@ tbody tr.flash{animation:flash 1.5s ease-out}
 .ticket-us{background:rgba(59,130,246,.15);color:#60a5fa}
 .ticket-notprovided{background:rgba(107,114,128,.15);color:var(--dim2)}
 .hosp-kessel{background:rgba(168,85,247,.15);color:#c084fc;border:1px solid rgba(168,85,247,.3)}
+.hosp-rlr{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)}
 .hosp-notprovided{background:rgba(107,114,128,.1);color:var(--dim)}
+.hosp-stack{display:inline-flex;flex-wrap:wrap;gap:3px}
 .category-professional{background:rgba(6,182,212,.15);color:#22d3ee}
 .category-personal{background:rgba(236,72,153,.15);color:#f472b6}
 
@@ -303,6 +305,7 @@ footer a:hover{text-decoration:underline}
   <select id="filter-hospitality">
     <option value="">All hospitality</option>
     <option value="kessel">Hospitality: Kessel</option>
+    <option value="rlr">Hospitality: RLR experience</option>
     <option value="notprovided">Hospitality: Not provided</option>
   </select>
   <select id="filter-company">
@@ -376,8 +379,15 @@ const TEAM_PASSWORD = "kessel2026";
 const STATUS_LABEL = { confirmed:"Confirmed", invited:"Invited", declined:"Declined", noreply:"No reply" };
 const TICKET_LABEL = { kessel:"Kessel", us:"Us", notprovided:"Not provided" };
 const VALID_TICKETS = ["kessel","us","notprovided"];
-const HOSPITALITY_LABEL = { kessel:"Kessel", notprovided:"Not provided" };
-const VALID_HOSPITALITY = ["kessel","notprovided"];
+const HOSPITALITY_LABEL = { kessel:"Kessel", rlr:"RLR experience", notprovided:"Not provided" };
+const VALID_HOSPITALITY = ["kessel","rlr"]; // provided options; empty array = "Not provided"
+const HOSP_ICON = { kessel:"🍽", rlr:"🏁" };
+function hospArrOf(g){
+  const h = g && g.hospitality;
+  if (Array.isArray(h)) return h.filter(x => VALID_HOSPITALITY.includes(x));
+  if (typeof h === "string" && VALID_HOSPITALITY.includes(h)) return [h];
+  return [];
+}
 const VALID_STATUSES = ["confirmed","invited","declined","noreply"];
 const PW_KEY = "elms_guests_team_pw";
 const AUTHOR_KEY = "elms_guests_author";
@@ -451,8 +461,13 @@ function normalizeGuest(g){
   if (ticket === "vip"){ ticket = "notprovided"; if (!hospitality) hospitality = "kessel"; }
   else if (ticket === "themselves"){ ticket = "notprovided"; }
   if (!VALID_TICKETS.includes(ticket)) ticket = "notprovided";
-  if (!VALID_HOSPITALITY.includes(hospitality)) hospitality = "notprovided";
-  return { ...g, ticket, hospitality };
+  // Hospitality is now an array; migrate legacy string forms. "notprovided" and unknown → empty array.
+  let hospArr;
+  if (Array.isArray(hospitality)) hospArr = hospitality.filter(h => VALID_HOSPITALITY.includes(h));
+  else if (typeof hospitality === "string" && VALID_HOSPITALITY.includes(hospitality)) hospArr = [hospitality];
+  else hospArr = [];
+  hospArr = [...new Set(hospArr)];
+  return { ...g, ticket, hospitality: hospArr };
 }
 
 // ============================================================
@@ -620,12 +635,17 @@ function sortGuests(arr){
   const dir = sortDir === "asc" ? 1 : -1;
   const statusOrder = { confirmed:0, invited:1, noreply:2, declined:3 };
   const ticketOrder = { kessel:0, us:1, notprovided:2 };
-  const hospOrder = { kessel:0, notprovided:1 };
+  const hospScore = (g) => {
+    const arr = hospArrOf(g);
+    if (arr.includes("kessel")) return 0;
+    if (arr.includes("rlr")) return 1;
+    return 2;
+  };
   return [...arr].sort((a,b) => {
     let av, bv;
     if (sortBy === "status") { av = statusOrder[a.status] ?? 99; bv = statusOrder[b.status] ?? 99; }
     else if (sortBy === "ticket") { av = ticketOrder[a.ticket] ?? 99; bv = ticketOrder[b.ticket] ?? 99; }
-    else if (sortBy === "hospitality") { av = hospOrder[a.hospitality||"notprovided"] ?? 99; bv = hospOrder[b.hospitality||"notprovided"] ?? 99; }
+    else if (sortBy === "hospitality") { av = hospScore(a); bv = hospScore(b); }
     else { av = (a[sortBy]||"").toString().toLowerCase(); bv = (b[sortBy]||"").toString().toLowerCase(); }
     if (av < bv) return -1*dir;
     if (av > bv) return 1*dir;
@@ -638,7 +658,11 @@ function filteredGuests(raceId){
   const base = guestsForRace(raceId).filter(g => {
     if (state.status && g.status !== state.status) return false;
     if (state.ticket && g.ticket !== state.ticket) return false;
-    if (state.hospitality && (g.hospitality||"notprovided") !== state.hospitality) return false;
+    if (state.hospitality){
+      const arr = hospArrOf(g);
+      if (state.hospitality === "notprovided"){ if (arr.length > 0) return false; }
+      else if (!arr.includes(state.hospitality)) return false;
+    }
     if (state.company && (g.company||"") !== state.company) return false;
     if (state.category && (g.category||"professional") !== state.category) return false;
     if (state.day && !guestDays(g).includes(state.day)) return false;
@@ -768,8 +792,10 @@ function renderTable(){
     const ticketLabel = TICKET_LABEL[g.ticket] || "—";
     const statusLabel = STATUS_LABEL[g.status] || g.status || "—";
     const catLabel = CATEGORY_LABEL[g.category||"professional"];
-    const hosp = g.hospitality || "notprovided";
-    const hospLabel = HOSPITALITY_LABEL[hosp] || "—";
+    const hospArr = hospArrOf(g);
+    const hospCellHtml = hospArr.length === 0
+      ? `<span class="tag hosp-notprovided">${HOSPITALITY_LABEL.notprovided}</span>`
+      : `<span class="hosp-stack">${hospArr.map(h => `<span class="tag hosp-${h}">${HOSP_ICON[h]?HOSP_ICON[h]+" ":""}${HOSPITALITY_LABEL[h]}</span>`).join("")}</span>`;
     const flashCls = g.id === flashId ? " flash" : "";
     const plus = Number(g.plusOnes)||0;
     const plusBadge = plus > 0 ? ` <span class="plus-badge" title="${plus} plus-one${plus!==1?"s":""}">+${plus}</span>` : "";
@@ -782,7 +808,7 @@ function renderTable(){
         <td>${g.company ? escapeHtml(g.company) : '<span style="color:var(--dim)">—</span>'}</td>
         <td><span class="tag category-${g.category||"professional"}">${catLabel}</span></td>
         <td><span class="tag ticket-${g.ticket||"notprovided"}">${ticketLabel}</span></td>
-        <td>${hosp === "kessel" ? `<span class="tag hosp-kessel">🍽 ${hospLabel}</span>` : `<span class="tag hosp-notprovided">${hospLabel}</span>`}</td>
+        <td>${hospCellHtml}</td>
         <td>${g.status ? `<span class="status status-${g.status}">${statusLabel}</span>` : "—"}</td>
         <td class="td-notes">${g.notes ? escapeHtml(g.notes) : ""}</td>
         ${canEdit ? `<td class="td-actions">
@@ -1117,11 +1143,11 @@ function closeModal(){ document.getElementById("overlay").classList.remove("open
 function openGuestModal(guestId, prefill){
   if (!hasEditAccess()) { openEditModeModal(true); return; }
   const editing = guestId ? DATA.guests.find(g => g.id === guestId) : null;
-  const base = { race: state.activeRace, name:"", company:"", ticket:"us", hospitality:"notprovided", status:"invited", notes:"", plusOnes:0, category:"professional", days: DEFAULT_DAYS.slice() };
+  const base = { race: state.activeRace, name:"", company:"", ticket:"us", hospitality:[], status:"invited", notes:"", plusOnes:0, category:"professional", days: DEFAULT_DAYS.slice() };
   const g = editing ? normalizeGuest(editing) : { ...base, ...(prefill||{}) };
   const cat = g.category || "professional";
   const gd = guestDays(g);
-  const hosp = g.hospitality || "notprovided";
+  const hospArr = hospArrOf(g);
 
   document.getElementById("modal-title").textContent = editing ? "Edit guest" : "Add guest";
   document.getElementById("modal-body").innerHTML = `
@@ -1174,10 +1200,12 @@ function openGuestModal(guestId, prefill){
       </div>
       <div>
         <label>Hospitality *</label>
-        <select id="f-hospitality">
-          <option value="kessel" ${hosp==="kessel"?"selected":""}>Kessel</option>
-          <option value="notprovided" ${hosp==="notprovided"?"selected":""}>Not provided</option>
-        </select>
+        <div class="seg">
+          <label class="seg-opt"><input type="checkbox" name="f-hosp" value="kessel" ${hospArr.includes("kessel")?"checked":""}> 🍽 Kessel</label>
+          <label class="seg-opt"><input type="checkbox" name="f-hosp" value="rlr" ${hospArr.includes("rlr")?"checked":""}> 🏁 RLR experience</label>
+          <label class="seg-opt"><input type="checkbox" name="f-hosp" value="notprovided" ${hospArr.length===0?"checked":""}> — Not provided</label>
+        </div>
+        <div class="form-hint">Select one or multiple. Checking "Not provided" clears the others.</div>
       </div>
     </div>
     <div class="form-row">
@@ -1210,6 +1238,17 @@ function openGuestModal(guestId, prefill){
   `;
   document.getElementById("btn-cancel").onclick = closeModal;
   document.getElementById("btn-save").onclick = () => submitGuest(editing?.id || null);
+  // Hospitality checkboxes: "Not provided" is mutually exclusive with Kessel/RLR
+  const hospBoxes = Array.from(document.querySelectorAll('input[name="f-hosp"]'));
+  hospBoxes.forEach(cb => cb.addEventListener("change", e => {
+    if (!e.target.checked) return;
+    if (e.target.value === "notprovided"){
+      hospBoxes.forEach(x => { if (x.value !== "notprovided") x.checked = false; });
+    } else {
+      const np = hospBoxes.find(x => x.value === "notprovided");
+      if (np) np.checked = false;
+    }
+  }));
   openModal(false);
   setTimeout(() => document.getElementById("f-name").focus(), 100);
 }
@@ -1227,7 +1266,7 @@ async function submitGuest(editingId){
     name,
     company: document.getElementById("f-company").value.trim(),
     ticket: document.getElementById("f-ticket").value,
-    hospitality: document.getElementById("f-hospitality").value,
+    hospitality: Array.from(document.querySelectorAll('input[name="f-hosp"]:checked')).map(i => i.value).filter(h => VALID_HOSPITALITY.includes(h)),
     status: document.getElementById("f-status").value,
     notes: document.getElementById("f-notes").value.trim(),
     plusOnes: Math.max(0, Math.min(20, parseInt(document.getElementById("f-plus").value, 10) || 0)),
@@ -1315,7 +1354,7 @@ function parseBulk(text){
     let plusOnesRaw = (cols[5] || "").trim();
     let category = (cols[6] || "professional").trim().toLowerCase();
     let daysRaw = (cols[7] || "").trim().toLowerCase();
-    let hospitality = (cols[8] || "notprovided").trim().toLowerCase();
+    let hospitalityRaw = (cols[8] || "").trim().toLowerCase();
     const errors = [];
 
     // Parse trailing "+N" in the name if not given explicitly in col 6
@@ -1328,11 +1367,18 @@ function parseBulk(text){
     }
 
     if (!name) errors.push("missing name");
-    // Legacy ticket inputs: vip → notprovided + hosp=kessel, themselves → notprovided
-    if (ticket === "vip"){ ticket = "notprovided"; if (hospitality === "notprovided") hospitality = "kessel"; }
+    // Parse hospitality — can be multi-value: "kessel", "rlr", "kessel+rlr", "notprovided", or empty
+    let hospitality = [];
+    if (hospitalityRaw){
+      const parts = hospitalityRaw.split(/[+\s|/,]+/).map(s => s.trim()).filter(Boolean);
+      const bad = parts.filter(p => !VALID_HOSPITALITY.includes(p) && p !== "notprovided" && p !== "none" && p !== "-");
+      if (bad.length) errors.push(`invalid hospitality "${bad.join("/")}"`);
+      hospitality = [...new Set(parts.filter(p => VALID_HOSPITALITY.includes(p)))];
+    }
+    // Legacy ticket inputs: vip → notprovided + hosp=kessel (if none), themselves → notprovided
+    if (ticket === "vip"){ ticket = "notprovided"; if (hospitality.length === 0) hospitality = ["kessel"]; }
     else if (ticket === "themselves"){ ticket = "notprovided"; }
     if (!VALID_TICKETS.includes(ticket)) { errors.push(`invalid ticket "${ticket}"`); ticket = "us"; }
-    if (!VALID_HOSPITALITY.includes(hospitality)) { errors.push(`invalid hospitality "${hospitality}"`); hospitality = "notprovided"; }
     if (!VALID_STATUSES.includes(status)) { errors.push(`invalid status "${status}"`); status = "invited"; }
     if (!VALID_CATEGORIES.includes(category)) { category = "professional"; }
     let days = DEFAULT_DAYS.slice();
@@ -1370,8 +1416,8 @@ function openBulkModal(){
     <div id="modal-error" style="display:none"></div>
     <div class="form-info">
       One guest per line. Format: <code>Name, Company, Ticket, Status, Notes, +N, Category, Days, Hospitality</code><br>
-      Only <strong>Name</strong> is required. Defaults: <code>Ticket</code>=us, <code>Status</code>=invited, <code>Category</code>=professional, <code>Days</code>=sat+sun, <code>Hospitality</code>=notprovided.<br>
-      Ticket values: <code>kessel</code> · <code>us</code> · <code>notprovided</code>. Hospitality values: <code>kessel</code> · <code>notprovided</code>.<br>
+      Only <strong>Name</strong> is required. Defaults: <code>Ticket</code>=us, <code>Status</code>=invited, <code>Category</code>=professional, <code>Days</code>=sat+sun, <code>Hospitality</code>=not provided.<br>
+      Ticket values: <code>kessel</code> · <code>us</code> · <code>notprovided</code>. Hospitality values (multi — join with <code>+</code>): <code>kessel</code> · <code>rlr</code> · leave empty for not provided.<br>
       Plus-ones: put <code>+2</code> at end of name or in col 6. Days: <code>fri+sat+sun</code> in col 8. Wrap values with commas in <code>"double quotes"</code>.
     </div>
     <div class="form-row">
@@ -1410,7 +1456,7 @@ John Leroux +1, , us, invited, My brother, , personal'></textarea>
           <span class="bulk-row-idx">${r.idx}</span>
           <div>
             <div class="bulk-row-name">${escapeHtml(r.name)}${r.plusOnes ? ` <span class="plus-badge">+${r.plusOnes}</span>` : ""}${r.company ? ` <span class="bulk-row-meta">· ${escapeHtml(r.company)}</span>` : ""}</div>
-            <div class="bulk-row-meta">${CATEGORY_LABEL[r.category]} · Ticket: ${TICKET_LABEL[r.ticket]} · Hosp: ${HOSPITALITY_LABEL[r.hospitality]} · ${STATUS_LABEL[r.status]} · ${r.days.map(d=>DAY_LABEL[d].slice(0,3)).join("+")}${r.notes ? ` · ${escapeHtml(r.notes)}` : ""}</div>
+            <div class="bulk-row-meta">${CATEGORY_LABEL[r.category]} · Ticket: ${TICKET_LABEL[r.ticket]} · Hosp: ${r.hospitality.length?r.hospitality.map(h=>HOSPITALITY_LABEL[h]).join("+"):HOSPITALITY_LABEL.notprovided} · ${STATUS_LABEL[r.status]} · ${r.days.map(d=>DAY_LABEL[d].slice(0,3)).join("+")}${r.notes ? ` · ${escapeHtml(r.notes)}` : ""}</div>
             ${r.errors.length ? `<div class="bulk-row-err">${r.errors.join(", ")} — row still imported with defaults</div>` : ""}
           </div>
           <span></span>
@@ -1459,7 +1505,9 @@ function exportCsv(scope){
   const headers = ["Race","Name","Plus-ones","Company","Category","Ticket","Hospitality","Status","Days","Notes","Added by"];
   const rows = scopeGuests.map(g => {
     const r = DATA.races.find(x => x.id === g.race);
-    return [r ? r.short : g.race, g.name, Number(g.plusOnes)||0, g.company||"", CATEGORY_LABEL[g.category||"professional"], TICKET_LABEL[g.ticket]||"Not provided", HOSPITALITY_LABEL[g.hospitality||"notprovided"], STATUS_LABEL[g.status]||g.status||"", guestDays(g).map(d=>DAY_LABEL[d]).join("+"), g.notes||"", g.updatedBy||""];
+    const hospArrCsv = hospArrOf(g);
+    const hospCsv = hospArrCsv.length ? hospArrCsv.map(h => HOSPITALITY_LABEL[h]).join(" + ") : HOSPITALITY_LABEL.notprovided;
+    return [r ? r.short : g.race, g.name, Number(g.plusOnes)||0, g.company||"", CATEGORY_LABEL[g.category||"professional"], TICKET_LABEL[g.ticket]||"Not provided", hospCsv, STATUS_LABEL[g.status]||g.status||"", guestDays(g).map(d=>DAY_LABEL[d]).join("+"), g.notes||"", g.updatedBy||""];
   });
   const csv = "﻿" + [headers, ...rows].map(r => r.map(csvEscape).join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
