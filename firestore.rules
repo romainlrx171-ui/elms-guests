@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Public read + write. The UI password is the gate; the URL + password are
+    // the secret. OK for a small trusted team; tighten if you ever share the URL
+    // more broadly.
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

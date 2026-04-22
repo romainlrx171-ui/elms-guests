@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ELMS 2026 — Guest Tracker</title>
+
+<!-- Firebase SDK (compat build for simpler global access) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
 <style>
 :root{--bg:#0a0a0f;--card:#12121a;--card2:#181825;--border:#1e1e2e;--border2:#2a2a3e;--text:#e0e0e8;--dim:#6b6b80;--dim2:#8a8aa0;--accent:#dc2626;--accent2:#ef4444;--green:#22c55e;--yellow:#eab308;--blue:#3b82f6;--purple:#a855f7;--orange:#f97316;--pink:#ec4899;--cyan:#06b6d4}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -18,6 +23,13 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .header-actions{display:flex;gap:8px;align-items:center}
 .btn-icon{background:var(--card);border:1px solid var(--border);color:var(--dim);padding:8px 12px;border-radius:6px;font-size:13px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;transition:.15s}
 .btn-icon:hover{border-color:var(--dim2);color:var(--text)}
+
+.sync-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--dim);vertical-align:middle;margin-right:6px;transition:.2s}
+.sync-dot.ok{background:var(--green);box-shadow:0 0 8px rgba(34,197,94,.5)}
+.sync-dot.err{background:var(--accent2)}
+.sync-dot.pulse{animation:pulse 1.2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.sync-label{font-size:11px;color:var(--dim);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
 
 .race-tabs{display:flex;gap:6px;padding:14px 28px;overflow-x:auto;border-bottom:1px solid var(--border);background:var(--card);scrollbar-width:thin}
 .race-tab{flex-shrink:0;padding:10px 16px;border-radius:8px;border:1px solid var(--border);background:var(--bg);cursor:pointer;transition:.2s;min-width:160px;display:flex;flex-direction:column;gap:3px;font-family:inherit;color:var(--text);text-align:left}
@@ -63,6 +75,7 @@ tbody tr:hover{background:rgba(255,255,255,.015)}
 tbody tr.flash{animation:flash 1.5s ease-out}
 @keyframes flash{0%{background:rgba(34,197,94,.2)}100%{background:transparent}}
 .td-name{font-weight:600;color:var(--text)}
+.td-author{font-size:11px;color:var(--dim);margin-top:3px;font-weight:400}
 .td-notes{color:var(--dim2);font-size:12px;line-height:1.4;max-width:320px;white-space:pre-wrap}
 .td-actions{white-space:nowrap;text-align:right;width:1px}
 .row-action{background:transparent;border:1px solid var(--border);color:var(--dim2);padding:5px 10px;border-radius:5px;font-size:11px;cursor:pointer;font-family:inherit;margin-left:4px;transition:.15s}
@@ -142,10 +155,13 @@ tbody tr.flash{animation:flash 1.5s ease-out}
 .toast.show{opacity:1;transform:translateY(0)}
 .toast.success{border-color:rgba(34,197,94,.5);color:#86efac}
 .toast.error{border-color:rgba(239,68,68,.5);color:#fca5a5}
+.toast.info{border-color:rgba(59,130,246,.5);color:#93c5fd}
 
 .readonly-banner{padding:10px 28px;background:rgba(234,179,8,.08);border-bottom:1px solid rgba(234,179,8,.2);color:#facc15;font-size:12px;display:flex;align-items:center;gap:10px;justify-content:center;text-align:center;flex-wrap:wrap}
 .readonly-banner button{background:transparent;border:1px solid rgba(234,179,8,.4);color:var(--yellow);padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer;font-weight:600;font-family:inherit}
 .readonly-banner button:hover{background:rgba(234,179,8,.15)}
+.setup-banner{padding:14px 28px;background:rgba(239,68,68,.1);border-bottom:1px solid rgba(239,68,68,.3);color:#fca5a5;font-size:13px;line-height:1.6;text-align:center}
+.setup-banner code{background:rgba(0,0,0,.3);padding:2px 6px;border-radius:3px;font-family:ui-monospace,monospace;font-size:11px;color:#fff}
 
 footer{padding:20px 28px;border-top:1px solid var(--border);background:var(--card);color:var(--dim);font-size:11px;line-height:1.7;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
 footer code{background:var(--bg);padding:1px 6px;border-radius:3px;color:var(--accent2);font-family:ui-monospace,monospace;font-size:10px}
@@ -179,6 +195,10 @@ footer a:hover{text-decoration:underline}
 </head>
 <body>
 
+<div id="setup-banner" class="setup-banner" style="display:none">
+  ⚠️ Firebase not configured. Paste your Firebase config into <code>guests.html</code> at the top of <code>&lt;script id="app"&gt;</code> and reload.
+</div>
+
 <div class="header">
   <div class="header-left">
     <h1>ELMS 2026 — <span>Guest Tracker</span></h1>
@@ -186,14 +206,15 @@ footer a:hover{text-decoration:underline}
   </div>
   <div class="header-stats" id="header-stats"></div>
   <div class="header-actions">
+    <div id="sync-indicator" title="Live sync status"><span class="sync-dot pulse" id="sync-dot"></span><span class="sync-label" id="sync-label">Connecting…</span></div>
     <button class="btn-icon" id="btn-print" title="Print current race">🖨 Print</button>
-    <button class="btn-icon" id="btn-settings" title="GitHub token">⚙ Settings</button>
+    <button class="btn-icon" id="btn-settings" title="Edit mode / team password">⚙ Edit mode</button>
   </div>
 </div>
 
 <div class="readonly-banner" id="readonly-banner" style="display:none">
-  <span>🔒 Read-only mode — add a GitHub token to edit guests from the dashboard</span>
-  <button id="banner-setup">Set up editing</button>
+  <span>🔒 Read-only mode — enter the team password to add or edit guests</span>
+  <button id="banner-setup">Enable editing</button>
 </div>
 
 <div class="race-tabs" id="race-tabs"></div>
@@ -232,7 +253,7 @@ footer a:hover{text-decoration:underline}
 </div>
 
 <footer>
-  <div>Data in <code>guests-data.json</code> · writes commit via GitHub API · <a href="https://github.com/romainlrx171-ui/elms-guests">Source</a></div>
+  <div>Data in <code>Firestore</code> · live-synced across devices · <a href="https://github.com/romainlrx171-ui/elms-guests">Source</a></div>
   <div id="footer-meta"></div>
   <div>Shortcuts: <span class="kbd">N</span> add · <span class="kbd">B</span> bulk · <span class="kbd">/</span> search · <span class="kbd">Esc</span> close</div>
 </footer>
@@ -249,93 +270,190 @@ footer a:hover{text-decoration:underline}
 
 <div class="toast" id="toast"></div>
 
-<script>
-const REPO_OWNER = "romainlrx171-ui";
-const REPO_NAME = "elms-guests";
-const DATA_FILE = "guests-data.json";
-const BRANCH = "main";
-const TOKEN_KEY = "elms_guests_gh_token";
+<script id="app">
+// ============================================================
+// 1. FIREBASE CONFIG — paste from Firebase Console
+// ============================================================
+const FIREBASE_CONFIG = {
+  apiKey: "PASTE_API_KEY",
+  authDomain: "PASTE_AUTH_DOMAIN",
+  projectId: "PASTE_PROJECT_ID",
+  storageBucket: "PASTE_STORAGE_BUCKET",
+  messagingSenderId: "PASTE_SENDER_ID",
+  appId: "PASTE_APP_ID"
+};
 
+// 2. TEAM PASSWORD — change this before sharing
+const TEAM_PASSWORD = "kessel2026";
+
+// ============================================================
+// Constants
+// ============================================================
 const STATUS_LABEL = { confirmed:"Confirmed", invited:"Invited", declined:"Declined", noreply:"No reply" };
 const TICKET_LABEL = { kessel:"Kessel", us:"Us", themselves:"Themselves", vip:"VIP Box" };
 const VALID_TICKETS = ["kessel","us","themselves","vip"];
 const VALID_STATUSES = ["confirmed","invited","declined","noreply"];
+const PW_KEY = "elms_guests_team_pw";
+const AUTHOR_KEY = "elms_guests_author";
 
-let DATA = null;
-let fileSha = null;
-let lastCommit = null;
+// Default season/race seed — used if Firestore is empty on first load
+const SEED = {
+  season: "ELMS 2026",
+  team: "Kessel Racing — Ferrari 296 GT3",
+  driver: "Romain Leroux",
+  races: [
+    { id: "prologue", name: "Prologue Test",             short: "Prologue",       circuit: "Barcelona-Catalunya", country: "Spain",    flag: "🇪🇸", date: "2026-04-06", endDate: "2026-04-07", hashtag: "#ELMSTest" },
+    { id: "r1",       name: "Round 1 — 4H Barcelona",    short: "R1 Barcelona",   circuit: "Barcelona-Catalunya", country: "Spain",    flag: "🇪🇸", date: "2026-04-12", hashtag: "#4HBarcelona" },
+    { id: "r2",       name: "Round 2 — 4H Le Castellet", short: "R2 Paul Ricard", circuit: "Paul Ricard",         country: "France",   flag: "🇫🇷", date: "2026-05-03", hashtag: "#4HLeCastellet", home: true },
+    { id: "r3",       name: "Round 3 — 4H Imola",        short: "R3 Imola",       circuit: "Imola",               country: "Italy",    flag: "🇮🇹", date: "2026-07-05", hashtag: "#4HImola" },
+    { id: "r4",       name: "Round 4 — 4H Spa",          short: "R4 Spa",         circuit: "Spa-Francorchamps",   country: "Belgium",  flag: "🇧🇪", date: "2026-08-23", hashtag: "#4HSpa" },
+    { id: "r5",       name: "Round 5 — 4H Silverstone",  short: "R5 Silverstone", circuit: "Silverstone",         country: "UK",       flag: "🇬🇧", date: "2026-09-13", hashtag: "#4HSilverstone" },
+    { id: "r6",       name: "Round 6 — 4H Portimao",     short: "R6 Portimao",    circuit: "Algarve — Portimão",  country: "Portugal", flag: "🇵🇹", date: "2026-10-10", hashtag: "#4HPortimao" }
+  ]
+};
+
+// ============================================================
+// Firebase init
+// ============================================================
+let db = null;
+let firebaseReady = false;
+
+function initFirebase(){
+  if (!FIREBASE_CONFIG.apiKey || FIREBASE_CONFIG.apiKey.startsWith("PASTE_")){
+    document.getElementById("setup-banner").style.display = "block";
+    setSync("err", "Not configured");
+    return false;
+  }
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.firestore();
+    firebaseReady = true;
+    return true;
+  } catch (e){
+    document.getElementById("setup-banner").style.display = "block";
+    document.getElementById("setup-banner").textContent = "⚠️ Firebase init failed: " + e.message;
+    setSync("err", "Init failed");
+    return false;
+  }
+}
+
+// ============================================================
+// State
+// ============================================================
+let DATA = { season: "", team: "", driver: "", races: [], guests: [] };
+let lastUpdate = null;
 let flashId = null;
+let initialLoadDone = false;
 const state = { activeRace: null, search: "", status: "", ticket: "", sortBy: "name", sortDir: "asc" };
 
-// --- Token ---
-function getToken(){ return localStorage.getItem(TOKEN_KEY) || ""; }
-function setToken(t){ if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); }
-function hasToken(){ return !!getToken(); }
+// ============================================================
+// Password / author
+// ============================================================
+function getPassword(){ return localStorage.getItem(PW_KEY) || ""; }
+function setPassword(p){ if (p) localStorage.setItem(PW_KEY, p); else localStorage.removeItem(PW_KEY); }
+function hasEditAccess(){ return getPassword() === TEAM_PASSWORD; }
+function getAuthor(){ return localStorage.getItem(AUTHOR_KEY) || ""; }
+function setAuthor(a){ if (a) localStorage.setItem(AUTHOR_KEY, a); else localStorage.removeItem(AUTHOR_KEY); }
 
-// --- Data load/save ---
-async function loadData(){
-  try {
-    const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DATA_FILE}?ref=${BRANCH}`, {
-      headers: { "Accept":"application/vnd.github+json" }
-    });
-    if (!res.ok) throw new Error("API failed");
-    const json = await res.json();
-    fileSha = json.sha;
-    const content = atob(json.content.replace(/\n/g,""));
-    const bytes = Uint8Array.from(content, c => c.charCodeAt(0));
-    DATA = JSON.parse(new TextDecoder("utf-8").decode(bytes));
-  } catch (e) {
-    const res = await fetch(`${DATA_FILE}?t=${Date.now()}`);
-    DATA = await res.json();
-  }
-  state.activeRace = DATA.races.find(r => r.home)?.id || DATA.races[0].id;
-  loadLastCommit();
+// ============================================================
+// Firestore data layer
+// ============================================================
+async function seedIfEmpty(){
+  const racesSnap = await db.collection("races").limit(1).get();
+  if (!racesSnap.empty) return;
+  const metaSnap = await db.collection("config").doc("meta").get();
+  if (metaSnap.exists) return;
+
+  const batch = db.batch();
+  batch.set(db.collection("config").doc("meta"), { season: SEED.season, team: SEED.team, driver: SEED.driver });
+  SEED.races.forEach(r => batch.set(db.collection("races").doc(r.id), r));
+  await batch.commit();
 }
 
-async function loadLastCommit(){
-  try {
-    const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/commits?path=${DATA_FILE}&per_page=1`);
-    if (!res.ok) return;
-    const arr = await res.json();
-    if (arr && arr[0]) {
-      lastCommit = { date: arr[0].commit.author.date, message: arr[0].commit.message };
-      renderFooterMeta();
+function attachListeners(){
+  // Meta (season / team / driver)
+  db.collection("config").doc("meta").onSnapshot(snap => {
+    if (snap.exists){
+      const m = snap.data();
+      DATA.season = m.season || ""; DATA.team = m.team || ""; DATA.driver = m.driver || "";
     }
-  } catch(e) {}
+  }, err => { setSync("err", "Meta error"); });
+
+  // Races
+  db.collection("races").onSnapshot(snap => {
+    DATA.races = [];
+    snap.forEach(d => DATA.races.push(d.data()));
+    // Keep races in seed order if possible
+    const order = SEED.races.map(r => r.id);
+    DATA.races.sort((a,b) => {
+      const ai = order.indexOf(a.id), bi = order.indexOf(b.id);
+      if (ai === -1 && bi === -1) return (a.date||"").localeCompare(b.date||"");
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+    if (!state.activeRace && DATA.races.length){
+      state.activeRace = DATA.races.find(r => r.home)?.id || DATA.races[0].id;
+    }
+    if (initialLoadDone) renderAll();
+  }, err => { setSync("err", "Races error"); });
+
+  // Guests
+  db.collection("guests").onSnapshot(snap => {
+    DATA.guests = [];
+    snap.forEach(d => DATA.guests.push(d.data()));
+    // Track most recent update
+    let latest = null; let latestMsg = "";
+    snap.forEach(d => {
+      const g = d.data();
+      if (g.updatedAt && (!latest || g.updatedAt > latest)){
+        latest = g.updatedAt;
+        latestMsg = g.updatedBy ? `${g.name} — by ${g.updatedBy}` : g.name;
+      }
+    });
+    if (latest){ lastUpdate = { at: latest, msg: latestMsg }; }
+    setSync("ok", "Live");
+    if (!initialLoadDone){
+      initialLoadDone = true;
+      renderAll();
+    } else {
+      renderAll();
+    }
+  }, err => { setSync("err", "Sync error"); console.error(err); });
 }
 
-async function saveData(commitMessage){
-  const token = getToken();
-  if (!token) throw new Error("No GitHub token — click ⚙ Settings to add one.");
-
-  const jsonStr = JSON.stringify(DATA, null, 2) + "\n";
-  const utf8 = new TextEncoder().encode(jsonStr);
-  let binary = ""; utf8.forEach(b => binary += String.fromCharCode(b));
-  const base64 = btoa(binary);
-
-  const body = { message: commitMessage, content: base64, branch: BRANCH };
-  if (fileSha) body.sha = fileSha;
-
-  const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DATA_FILE}`, {
-    method: "PUT",
-    headers: { "Authorization": `Bearer ${token}`, "Accept": "application/vnd.github+json", "Content-Type": "application/json" },
-    body: JSON.stringify(body)
+async function upsertGuest(g){
+  g.updatedAt = Date.now();
+  g.updatedBy = getAuthor() || "anonymous";
+  await db.collection("guests").doc(g.id).set(g);
+}
+async function deleteGuestDoc(id){
+  await db.collection("guests").doc(id).delete();
+}
+async function bulkAddGuests(arr){
+  // Firestore batch limit: 500 writes. Our lists are small, single batch is fine.
+  const batch = db.batch();
+  const now = Date.now();
+  const author = getAuthor() || "anonymous";
+  arr.forEach(g => {
+    batch.set(db.collection("guests").doc(g.id), { ...g, updatedAt: now, updatedBy: author });
   });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    if (res.status === 409 || (err.message && /sha/i.test(err.message))) throw new Error("Someone else edited this list. Refresh and redo your change.");
-    if (res.status === 401 || res.status === 403) throw new Error("GitHub rejected the token (check Contents:write on this repo).");
-    throw new Error(err.message || `Save failed (${res.status})`);
-  }
-
-  const json = await res.json();
-  fileSha = json.content.sha;
-  lastCommit = { date: new Date().toISOString(), message: commitMessage };
-  renderFooterMeta();
+  await batch.commit();
 }
 
-// --- Utilities ---
+// ============================================================
+// Sync indicator
+// ============================================================
+function setSync(kind, label){
+  const dot = document.getElementById("sync-dot");
+  const lbl = document.getElementById("sync-label");
+  dot.className = "sync-dot " + (kind === "ok" ? "ok" : kind === "err" ? "err" : "pulse");
+  lbl.textContent = label;
+}
+
+// ============================================================
+// Utilities
+// ============================================================
 function fmtDate(iso, endIso){
   if (!iso) return "";
   const opts = { day:"numeric", month:"long", year:"numeric" };
@@ -355,13 +473,13 @@ function daysUntil(iso){
   if (diff === 0) return "today";
   return `${-diff} day${-diff!==1?"s":""} ago`;
 }
-function relTime(iso){
-  const s = Math.floor((Date.now() - new Date(iso).getTime())/1000);
+function relTime(ms){
+  const s = Math.floor((Date.now() - ms)/1000);
   if (s < 60) return "just now";
   if (s < 3600) return `${Math.floor(s/60)} min ago`;
   if (s < 86400) return `${Math.floor(s/3600)} h ago`;
   if (s < 604800) return `${Math.floor(s/86400)} day${Math.floor(s/86400)!==1?"s":""} ago`;
-  return new Date(iso).toLocaleDateString("en-GB",{day:"numeric",month:"short"});
+  return new Date(ms).toLocaleDateString("en-GB",{day:"numeric",month:"short"});
 }
 function escapeHtml(s){
   if (s == null) return "";
@@ -400,7 +518,9 @@ function filteredGuests(raceId){
   return sortGuests(base);
 }
 
-// --- Rendering ---
+// ============================================================
+// Rendering
+// ============================================================
 function renderHeaderStats(){
   const total = DATA.guests.length;
   const confirmed = DATA.guests.filter(g => g.status === "confirmed").length;
@@ -438,6 +558,7 @@ function renderRaceTabs(){
 
 function renderRaceHeader(){
   const r = DATA.races.find(x => x.id === state.activeRace);
+  if (!r) { document.getElementById("race-header").innerHTML = ""; return; }
   const gs = guestsForRace(r.id);
   const confirmed = gs.filter(g => g.status === "confirmed").length;
   const pending = gs.filter(g => g.status === "invited" || g.status === "noreply").length;
@@ -479,8 +600,9 @@ function sortClass(col){
 
 function renderTable(){
   const r = DATA.races.find(x => x.id === state.activeRace);
-  const gs = filteredGuests(r.id);
   const container = document.getElementById("table-container");
+  if (!r){ container.innerHTML = `<div class="empty"><h3>No races yet</h3><p>Waiting for the season to seed…</p></div>`; return; }
+  const gs = filteredGuests(r.id);
 
   if (gs.length === 0){
     const totalForRace = guestsForRace(r.id).length;
@@ -495,14 +617,15 @@ function renderTable(){
     return;
   }
 
-  const canEdit = hasToken();
+  const canEdit = hasEditAccess();
   const rows = gs.map(g => {
     const ticketLabel = TICKET_LABEL[g.ticket] || g.ticket || "—";
     const statusLabel = STATUS_LABEL[g.status] || g.status || "—";
     const flashCls = g.id === flashId ? " flash" : "";
+    const authorLine = g.updatedBy ? `<div class="td-author">by ${escapeHtml(g.updatedBy)}${g.updatedAt ? ` · ${relTime(g.updatedAt)}` : ""}</div>` : "";
     return `
       <tr class="row${flashCls}" data-row="${g.id}">
-        <td><div class="td-name">${escapeHtml(g.name)}</div></td>
+        <td><div class="td-name">${escapeHtml(g.name)}</div>${authorLine}</td>
         <td>${g.company ? escapeHtml(g.company) : '<span style="color:var(--dim)">—</span>'}</td>
         <td>${g.ticket ? `<span class="tag ticket-${g.ticket}">${ticketLabel}</span>` : "—"}</td>
         <td>${g.status ? `<span class="status status-${g.status}">${statusLabel}</span>` : "—"}</td>
@@ -552,16 +675,17 @@ function renderTable(){
 }
 
 function updateReadonlyBanner(){
-  document.getElementById("readonly-banner").style.display = hasToken() ? "none" : "flex";
-  document.getElementById("btn-add").style.display = hasToken() ? "inline-flex" : "none";
-  document.getElementById("btn-bulk").style.display = hasToken() ? "inline-flex" : "none";
+  const canEdit = hasEditAccess();
+  document.getElementById("readonly-banner").style.display = canEdit ? "none" : "flex";
+  document.getElementById("btn-add").style.display = canEdit ? "inline-flex" : "none";
+  document.getElementById("btn-bulk").style.display = canEdit ? "inline-flex" : "none";
+  document.getElementById("btn-settings").innerHTML = canEdit ? "🔓 Editing as " + escapeHtml(getAuthor() || "…") : "⚙ Edit mode";
 }
 
 function renderFooterMeta(){
   const el = document.getElementById("footer-meta");
-  if (!lastCommit) { el.textContent = ""; return; }
-  const msg = lastCommit.message.split("\n")[0];
-  el.innerHTML = `Last updated ${relTime(lastCommit.date)} — <span style="color:var(--dim2)">${escapeHtml(msg)}</span>`;
+  if (!lastUpdate) { el.textContent = ""; return; }
+  el.innerHTML = `Last update ${relTime(lastUpdate.at)} — <span style="color:var(--dim2)">${escapeHtml(lastUpdate.msg)}</span>`;
 }
 
 function renderAll(){
@@ -573,12 +697,14 @@ function renderAll(){
   renderFooterMeta();
 }
 
-// --- Modal ---
+// ============================================================
+// Modal
+// ============================================================
 function openModal(wide){ document.getElementById("overlay").classList.add("open"); const m = document.getElementById("modal"); m.classList.toggle("wide", !!wide); m.classList.add("open"); }
 function closeModal(){ document.getElementById("overlay").classList.remove("open"); const m = document.getElementById("modal"); m.classList.remove("open"); m.classList.remove("wide"); }
 
 function openGuestModal(guestId){
-  if (!hasToken()) { openSettingsModal(true); return; }
+  if (!hasEditAccess()) { openEditModeModal(true); return; }
   const editing = guestId ? DATA.guests.find(g => g.id === guestId) : null;
   const g = editing || { race: state.activeRace, name:"", company:"", ticket:"us", status:"invited", notes:"" };
 
@@ -660,32 +786,19 @@ async function submitGuest(editingId){
   const btn = document.getElementById("btn-save");
   btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:12px;height:12px"></span> Saving…';
 
-  const prevGuests = JSON.parse(JSON.stringify(DATA.guests));
-  if (editingId) {
-    const idx = DATA.guests.findIndex(g => g.id === editingId);
-    DATA.guests[idx] = draft;
-  } else {
-    DATA.guests.push(draft);
-  }
-  let clonedId = null;
-  if (cloneRace) {
-    clonedId = genId();
-    DATA.guests.push({ ...draft, id: clonedId, race: cloneRace, status: "invited" });
-  }
-
   try {
-    const msg = editingId
-      ? (cloneRace ? `Update ${name} & clone to ${cloneRace}` : `Update guest ${name}`)
-      : `Add guest ${name}`;
-    await saveData(msg);
+    await upsertGuest(draft);
+    let clonedId = null;
+    if (cloneRace){
+      clonedId = genId();
+      await upsertGuest({ ...draft, id: clonedId, race: cloneRace, status: "invited" });
+    }
     state.activeRace = cloneRace || draft.race;
     flashId = clonedId || draft.id;
-    renderAll();
     closeModal();
     toast("success", cloneRace ? `Updated & cloned to ${DATA.races.find(r=>r.id===cloneRace).short}` : (editingId ? `Updated ${name}` : `Added ${name}`));
   } catch (e) {
-    DATA.guests = prevGuests;
-    showModalError(e.message);
+    showModalError(e.message || "Save failed");
     btn.disabled = false; btn.textContent = editingId ? "Save changes" : "Add guest";
   }
 }
@@ -696,7 +809,7 @@ function confirmDelete(guestId){
   document.getElementById("modal-title").textContent = "Delete guest?";
   document.getElementById("modal-body").innerHTML = `
     <div id="modal-error" style="display:none"></div>
-    <p style="font-size:14px;line-height:1.6;color:var(--text)">Remove <strong>${escapeHtml(g.name)}</strong>${g.company ? ` (${escapeHtml(g.company)})` : ""} from the guest list? This commits to GitHub immediately.</p>
+    <p style="font-size:14px;line-height:1.6;color:var(--text)">Remove <strong>${escapeHtml(g.name)}</strong>${g.company ? ` (${escapeHtml(g.company)})` : ""} from the guest list? This is synced immediately to the team.</p>
   `;
   document.getElementById("modal-footer").innerHTML = `
     <button class="btn-secondary" id="btn-cancel">Cancel</button>
@@ -711,16 +824,12 @@ async function performDelete(guestId){
   const g = DATA.guests.find(x => x.id === guestId);
   const btn = document.getElementById("btn-confirm");
   btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:12px;height:12px"></span> Deleting…';
-  const prevGuests = JSON.parse(JSON.stringify(DATA.guests));
-  DATA.guests = DATA.guests.filter(x => x.id !== guestId);
   try {
-    await saveData(`Remove guest ${g.name}`);
-    renderAll();
+    await deleteGuestDoc(guestId);
     closeModal();
     toast("success", `Removed ${g.name}`);
   } catch (e) {
-    DATA.guests = prevGuests;
-    showModalError(e.message);
+    showModalError(e.message || "Delete failed");
     btn.disabled = false; btn.textContent = "Delete";
   }
 }
@@ -728,21 +837,19 @@ async function performDelete(guestId){
 async function quickConfirm(guestId){
   const g = DATA.guests.find(x => x.id === guestId);
   if (!g) return;
-  const prev = g.status;
-  g.status = "confirmed";
+  const updated = { ...g, status: "confirmed" };
   flashId = g.id;
-  renderAll();
   try {
-    await saveData(`Confirm ${g.name}`);
+    await upsertGuest(updated);
     toast("success", `${g.name} confirmed`);
   } catch (e) {
-    g.status = prev;
-    renderAll();
-    toast("error", e.message);
+    toast("error", e.message || "Failed");
   }
 }
 
-// --- Bulk add ---
+// ============================================================
+// Bulk add
+// ============================================================
 function parseBulk(text){
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   return lines.map((line, idx) => {
@@ -779,7 +886,7 @@ function splitCsvLine(line){
 }
 
 function openBulkModal(){
-  if (!hasToken()) { openSettingsModal(true); return; }
+  if (!hasEditAccess()) { openEditModeModal(true); return; }
   document.getElementById("modal-title").textContent = "Bulk add guests";
   document.getElementById("modal-body").innerHTML = `
     <div id="modal-error" style="display:none"></div>
@@ -846,23 +953,22 @@ async function submitBulk(){
   const btn = document.getElementById("btn-save");
   btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:12px;height:12px"></span> Saving…';
 
-  const prev = JSON.parse(JSON.stringify(DATA.guests));
-  rows.forEach(r => DATA.guests.push({ id: genId(), race: raceId, name: r.name, company: r.company, ticket: r.ticket, status: r.status, notes: r.notes }));
+  const toInsert = rows.map(r => ({ id: genId(), race: raceId, name: r.name, company: r.company, ticket: r.ticket, status: r.status, notes: r.notes }));
 
   try {
-    await saveData(`Bulk add ${rows.length} guest${rows.length!==1?"s":""} to ${raceId}`);
+    await bulkAddGuests(toInsert);
     state.activeRace = raceId;
-    renderAll();
     closeModal();
     toast("success", `Added ${rows.length} guest${rows.length!==1?"s":""}`);
   } catch (e) {
-    DATA.guests = prev;
-    showModalError(e.message);
+    showModalError(e.message || "Bulk save failed");
     btn.disabled = false; btn.textContent = `Add ${rows.length} guest${rows.length!==1?"s":""}`;
   }
 }
 
-// --- CSV export ---
+// ============================================================
+// CSV export
+// ============================================================
 function csvEscape(v){
   const s = v == null ? "" : String(v);
   if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
@@ -870,61 +976,73 @@ function csvEscape(v){
 }
 function exportCsv(scope){
   const scopeGuests = scope === "current" ? guestsForRace(state.activeRace) : DATA.guests;
-  const headers = ["Race","Name","Company","Ticket","Status","Notes"];
+  const headers = ["Race","Name","Company","Ticket","Status","Notes","Added by"];
   const rows = scopeGuests.map(g => {
     const r = DATA.races.find(x => x.id === g.race);
-    return [r ? r.short : g.race, g.name, g.company||"", TICKET_LABEL[g.ticket]||g.ticket||"", STATUS_LABEL[g.status]||g.status||"", g.notes||""];
+    return [r ? r.short : g.race, g.name, g.company||"", TICKET_LABEL[g.ticket]||g.ticket||"", STATUS_LABEL[g.status]||g.status||"", g.notes||"", g.updatedBy||""];
   });
   const csv = "﻿" + [headers, ...rows].map(r => r.map(csvEscape).join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   const r = DATA.races.find(x => x.id === state.activeRace);
-  const name = scope === "current" ? `elms-guests-${r.id}` : `elms-guests-season`;
+  const name = scope === "current" ? `elms-guests-${r?.id||"all"}` : `elms-guests-season`;
   a.href = url; a.download = `${name}-${new Date().toISOString().slice(0,10)}.csv`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   toast("success", `Exported ${scopeGuests.length} guest${scopeGuests.length!==1?"s":""}`);
 }
 
-// --- Settings ---
-function openSettingsModal(nudge){
-  document.getElementById("modal-title").textContent = "GitHub token";
-  const current = getToken();
-  const masked = current ? current.slice(0,7) + "…" + current.slice(-4) : "";
+// ============================================================
+// Edit-mode (password + author)
+// ============================================================
+function openEditModeModal(nudge){
+  const alreadyEditing = hasEditAccess();
+  document.getElementById("modal-title").textContent = alreadyEditing ? "Edit mode" : "Enable editing";
   document.getElementById("modal-body").innerHTML = `
     <div id="modal-error" style="display:none"></div>
-    ${nudge ? `<div class="form-info">Add a token to enable editing from the dashboard.</div>` : ""}
+    ${nudge ? `<div class="form-info">Enter the team password to enable editing. Ask Romain if you don't have it.</div>` : ""}
+    ${alreadyEditing ? `<div class="form-success">✓ Editing enabled. You can add, edit, or remove guests — changes sync live to the whole team.</div>` : ""}
     <div class="form-row">
-      <label>Personal access token</label>
-      <input type="password" id="f-token" placeholder="${current ? masked : "github_pat_..."}" autocomplete="off" />
-      <div class="form-hint">
-        Stored locally in your browser only. To create a token:<br>
-        1. Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank">Fine-grained tokens</a><br>
-        2. Repository access: only <code>romainlrx171-ui/elms-guests</code><br>
-        3. Permissions → Repository → <code>Contents: Read and write</code><br>
-        4. Paste the token above.
-      </div>
+      <label>Your name *</label>
+      <input type="text" id="f-author" value="${escapeHtml(getAuthor())}" placeholder="e.g. Romain, Marco, Julie…" />
+      <div class="form-hint">Shown next to guests you add or edit, so the team knows who did what.</div>
+    </div>
+    <div class="form-row">
+      <label>Team password${alreadyEditing ? " (already saved)" : ""}</label>
+      <input type="password" id="f-pw" placeholder="${alreadyEditing ? "••••••••" : "Team password"}" autocomplete="off" />
     </div>
   `;
   document.getElementById("modal-footer").innerHTML = `
-    ${current ? `<button class="btn-danger" id="btn-remove">Remove token</button>` : ""}
+    ${alreadyEditing ? `<button class="btn-danger" id="btn-signout">Sign out</button>` : ""}
     <div style="flex:1"></div>
     <button class="btn-secondary" id="btn-cancel">Close</button>
-    <button class="btn-primary" id="btn-save">Save token</button>
+    <button class="btn-primary" id="btn-save">${alreadyEditing ? "Save name" : "Enable editing"}</button>
   `;
   document.getElementById("btn-cancel").onclick = closeModal;
   document.getElementById("btn-save").onclick = () => {
-    const t = document.getElementById("f-token").value.trim();
-    if (t) setToken(t);
-    closeModal(); renderAll();
-    if (t) toast("success", "Token saved — you can now edit guests.");
+    const author = document.getElementById("f-author").value.trim();
+    const pw = document.getElementById("f-pw").value;
+    if (!author){ showModalError("Please enter your name so the team knows who's editing."); return; }
+    setAuthor(author);
+    if (pw){
+      if (pw !== TEAM_PASSWORD){ showModalError("Wrong password."); return; }
+      setPassword(pw);
+    } else if (!alreadyEditing){
+      showModalError("Team password required."); return;
+    }
+    closeModal();
+    renderAll();
+    toast("success", hasEditAccess() ? `Editing as ${author}` : "Name saved");
   };
-  if (current) document.getElementById("btn-remove").onclick = () => {
-    setToken(""); closeModal(); renderAll();
-    toast("success", "Token removed — back to read-only.");
-  };
+  if (alreadyEditing){
+    document.getElementById("btn-signout").onclick = () => {
+      setPassword(""); closeModal(); renderAll();
+      toast("info", "Signed out — back to read-only.");
+    };
+  }
   openModal(false);
+  setTimeout(() => document.getElementById(alreadyEditing ? "f-author" : "f-author").focus(), 100);
 }
 
 function showModalError(msg){
@@ -937,14 +1055,16 @@ function toast(kind, msg){
   setTimeout(() => el.classList.remove("show"), 3200);
 }
 
-// --- Events ---
+// ============================================================
+// Events
+// ============================================================
 document.getElementById("search").addEventListener("input", e => { state.search = e.target.value; renderTable(); });
 document.getElementById("filter-status").addEventListener("change", e => { state.status = e.target.value; renderTable(); });
 document.getElementById("filter-ticket").addEventListener("change", e => { state.ticket = e.target.value; renderTable(); });
 document.getElementById("btn-add").addEventListener("click", () => openGuestModal(null));
 document.getElementById("btn-bulk").addEventListener("click", openBulkModal);
-document.getElementById("btn-settings").addEventListener("click", () => openSettingsModal(false));
-document.getElementById("banner-setup").addEventListener("click", () => openSettingsModal(true));
+document.getElementById("btn-settings").addEventListener("click", () => openEditModeModal(false));
+document.getElementById("banner-setup").addEventListener("click", () => openEditModeModal(true));
 document.getElementById("btn-print").addEventListener("click", () => window.print());
 document.getElementById("overlay").addEventListener("click", closeModal);
 document.getElementById("modal-close").addEventListener("click", closeModal);
@@ -963,17 +1083,24 @@ document.addEventListener("keydown", e => {
   if (isTyping) return;
   if (document.getElementById("modal").classList.contains("open")) return;
   if (e.key === "/" ) { e.preventDefault(); document.getElementById("search").focus(); }
-  else if (e.key.toLowerCase() === "n" && hasToken()) { e.preventDefault(); openGuestModal(null); }
-  else if (e.key.toLowerCase() === "b" && hasToken()) { e.preventDefault(); openBulkModal(); }
+  else if (e.key.toLowerCase() === "n" && hasEditAccess()) { e.preventDefault(); openGuestModal(null); }
+  else if (e.key.toLowerCase() === "b" && hasEditAccess()) { e.preventDefault(); openBulkModal(); }
 });
 
 // Refresh the "last updated" label every minute
 setInterval(renderFooterMeta, 60000);
 
+// ============================================================
+// Boot
+// ============================================================
 (async () => {
-  try { await loadData(); renderAll(); }
-  catch (e) {
-    document.getElementById("table-container").innerHTML = `<div class="empty"><h3>Failed to load data</h3><p>${escapeHtml(e.message)}</p></div>`;
+  if (!initFirebase()) return;
+  try {
+    await seedIfEmpty();
+    attachListeners();
+  } catch (e) {
+    document.getElementById("table-container").innerHTML = `<div class="empty"><h3>Failed to connect</h3><p>${escapeHtml(e.message)}</p><p style="margin-top:10px">Check your Firebase config and that Firestore is enabled in the Firebase console.</p></div>`;
+    setSync("err", "Failed");
   }
 })();
 </script>
