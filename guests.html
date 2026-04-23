@@ -56,6 +56,23 @@ body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var
 .controls input:focus,.controls select:focus{border-color:var(--accent)}
 .controls input{width:260px}
 .controls-spacer{flex:1}
+
+.filter-preview{display:none;padding:10px 28px;border-bottom:1px solid var(--border);background:linear-gradient(180deg,rgba(220,38,38,.06),transparent);align-items:center;gap:16px;flex-wrap:wrap;font-size:12px}
+.filter-preview.show{display:flex}
+.filter-preview-count{display:inline-flex;align-items:baseline;gap:6px;color:var(--dim2);font-weight:600;letter-spacing:.2px}
+.filter-preview-count .num{color:var(--accent2);font-size:18px;font-weight:800}
+.filter-preview-days{display:inline-flex;gap:12px;color:var(--dim2)}
+.filter-preview-days span b{font-weight:800;margin-right:3px}
+.filter-preview-days .fri b{color:#c084fc}
+.filter-preview-days .sat b{color:#67e8f9}
+.filter-preview-days .sun b{color:#fdba74}
+.filter-preview-sep{width:1px;height:18px;background:var(--border2)}
+.filter-preview-chips{display:inline-flex;gap:6px;flex-wrap:wrap}
+.filter-preview-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 4px 3px 10px;border-radius:11px;background:rgba(220,38,38,.1);border:1px solid rgba(220,38,38,.25);color:#fca5a5;font-size:11px;font-weight:600}
+.filter-preview-chip button{background:transparent;border:none;color:inherit;cursor:pointer;font-size:14px;line-height:1;padding:0 4px;opacity:.7;font-family:inherit}
+.filter-preview-chip button:hover{opacity:1}
+.filter-preview-clear{margin-left:auto;background:transparent;border:1px solid var(--border2);color:var(--dim2);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit}
+.filter-preview-clear:hover{color:var(--text);border-color:var(--dim2)}
 .btn-primary{background:var(--accent);color:#fff;border:1px solid var(--accent);padding:8px 14px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;transition:.15s}
 .btn-primary:hover{background:var(--accent2)}
 .btn-primary:disabled{opacity:.5;cursor:not-allowed}
@@ -246,7 +263,7 @@ footer a:hover{text-decoration:underline}
   body{background:#fff;color:#000}
   .header{background:#fff;color:#000;border-color:#ccc}
   .header-left h1 span{color:#000}
-  .header-sub,.header-stats,.header-actions,.race-tabs,.controls,.readonly-banner,footer,.td-actions,.td-actions *{display:none !important}
+  .header-sub,.header-stats,.header-actions,.race-tabs,.controls,.filter-preview,.readonly-banner,footer,.td-actions,.td-actions *{display:none !important}
   th,td{color:#000;border-color:#ccc !important}
   table{background:#fff;border-color:#ccc}
   thead{background:#f3f3f3}
@@ -334,6 +351,8 @@ footer a:hover{text-decoration:underline}
   <button class="btn-icon" id="btn-bulk">📥 Bulk add</button>
   <button class="btn-primary" id="btn-add">＋ Add guest</button>
 </div>
+
+<div class="filter-preview" id="filter-preview"></div>
 
 <div id="table-container">
   <div class="loading"><span class="spinner"></span>Loading guests…</div>
@@ -906,6 +925,7 @@ function renderFooterMeta(){
 
 function renderAll(){
   renderHeaderStats();
+  renderFilterPreview();
   renderRaceTabs();
   renderRaceHeader();
   renderRaceDetails();
@@ -913,6 +933,69 @@ function renderAll(){
   renderTable();
   updateReadonlyBanner();
   renderFooterMeta();
+}
+
+function renderFilterPreview(){
+  const el = document.getElementById("filter-preview");
+  if (!el) return;
+  const r = DATA.races.find(x => x.id === state.activeRace);
+  const search = state.search.trim();
+  const activeFilters = [
+    state.status       ? { key: "status",       label: "Status",      value: state.status,       text: ({confirmed:"Confirmed",invited:"Invited",declined:"Declined",noreply:"No reply"})[state.status] } : null,
+    state.ticket       ? { key: "ticket",       label: "Ticket",      value: state.ticket,       text: ({kessel:"Kessel",us:"Us",notprovided:"Not provided"})[state.ticket] } : null,
+    state.hospitality  ? { key: "hospitality",  label: "Hospitality", value: state.hospitality,  text: ({kessel:"Kessel",rlr:"RLR experience",notprovided:"Not provided"})[state.hospitality] } : null,
+    state.company      ? { key: "company",      label: "Company",     value: state.company,      text: state.company } : null,
+    state.category     ? { key: "category",     label: "Category",    value: state.category,     text: ({professional:"Professional",personal:"Personal"})[state.category] } : null,
+    state.day          ? { key: "day",          label: "Day",         value: state.day,          text: ({fri:"Friday only",sat:"Saturday only",sun:"Sunday only"})[state.day] } : null,
+    search             ? { key: "search",       label: "Search",      value: search,             text: `"${search}"` } : null
+  ].filter(Boolean);
+
+  if (activeFilters.length === 0){ el.classList.remove("show"); el.innerHTML = ""; return; }
+
+  const scoped = r ? filteredGuests(r.id) : [];
+  const h = headsByDay(scoped);
+  const dayParts = state.day ? "" : `
+    <div class="filter-preview-sep"></div>
+    <div class="filter-preview-days">
+      <span class="fri"><b>${h.fri}</b>Fri</span>
+      <span class="sat"><b>${h.sat}</b>Sat</span>
+      <span class="sun"><b>${h.sun}</b>Sun</span>
+    </div>`;
+
+  const chips = activeFilters.map(f => `
+    <span class="filter-preview-chip">
+      <span>${escapeHtml(f.label)}: ${escapeHtml(f.text)}</span>
+      <button data-clear="${f.key}" title="Remove this filter">×</button>
+    </span>`).join("");
+
+  el.innerHTML = `
+    <div class="filter-preview-count"><span class="num">${scoped.length}</span>matching guest${scoped.length===1?"":"s"} · ${h.total} head${h.total===1?"":"s"}</div>
+    ${dayParts}
+    <div class="filter-preview-sep"></div>
+    <div class="filter-preview-chips">${chips}</div>
+    <button class="filter-preview-clear" id="filter-preview-clear-all">Clear all</button>
+  `;
+  el.classList.add("show");
+
+  el.querySelectorAll("[data-clear]").forEach(b => b.addEventListener("click", () => clearFilter(b.dataset.clear)));
+  const clearAll = el.querySelector("#filter-preview-clear-all");
+  if (clearAll) clearAll.addEventListener("click", clearAllFilters);
+}
+
+function clearFilter(key){
+  if (key === "search"){ state.search = ""; document.getElementById("search").value = ""; }
+  else { state[key] = ""; const sel = document.getElementById("filter-" + key); if (sel) sel.value = ""; }
+  onFilterChange();
+}
+
+function clearAllFilters(){
+  state.search = ""; state.status = ""; state.ticket = ""; state.hospitality = "";
+  state.company = ""; state.category = ""; state.day = "";
+  document.getElementById("search").value = "";
+  ["status","ticket","hospitality","company","category","day"].forEach(k => {
+    const sel = document.getElementById("filter-" + k); if (sel) sel.value = "";
+  });
+  onFilterChange();
 }
 
 function attachmentsForRace(raceId){
@@ -1586,7 +1669,7 @@ function toast(kind, msg){
 // ============================================================
 // Events
 // ============================================================
-function onFilterChange(){ renderHeaderStats(); renderTable(); }
+function onFilterChange(){ renderHeaderStats(); renderFilterPreview(); renderTable(); }
 document.getElementById("search").addEventListener("input", e => { state.search = e.target.value; onFilterChange(); });
 document.getElementById("filter-status").addEventListener("change", e => { state.status = e.target.value; onFilterChange(); });
 document.getElementById("filter-ticket").addEventListener("change", e => { state.ticket = e.target.value; onFilterChange(); });
